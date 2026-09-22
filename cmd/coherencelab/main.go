@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	httpcloakadapter "github.com/coherencelab/coherencelab/internal/adapters/httpcloak"
+	"github.com/coherencelab/coherencelab/internal/capture"
 	"github.com/coherencelab/coherencelab/internal/profile"
 	"github.com/coherencelab/coherencelab/internal/probe"
 	"github.com/coherencelab/coherencelab/internal/report"
@@ -39,6 +40,7 @@ bot detection failures in production HTTP clients and automation stacks.`,
 	cmd.PersistentFlags().StringVar(&profilesDir, "profiles", defaultProfilesDir(), "path to browser profiles directory")
 
 	cmd.AddCommand(scanCmd())
+	cmd.AddCommand(captureCmd())
 	cmd.AddCommand(profilesCmd())
 	cmd.AddCommand(serveCmd())
 	cmd.AddCommand(demoCmd())
@@ -219,6 +221,36 @@ func profilesCmd() *cobra.Command {
 			return nil
 		},
 	})
+	return cmd
+}
+
+func captureCmd() *cobra.Command {
+	var input, output string
+	cmd := &cobra.Command{
+		Use:   "capture",
+		Short: "Generate a profile YAML from a captured session JSON",
+		Example: `  coherencelab capture --input session-capture.json --output profiles/my-client.yaml`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if input == "" || output == "" {
+				return fmt.Errorf("--input and --output are required")
+			}
+			in, err := capture.FromJSONFile(input)
+			if err != nil {
+				return err
+			}
+			p, err := capture.ToProfile(in)
+			if err != nil {
+				return err
+			}
+			if err := capture.WriteYAML(output, p); err != nil {
+				return err
+			}
+			fmt.Printf("Profile written to %s\n", output)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&input, "input", "", "captured session JSON")
+	cmd.Flags().StringVar(&output, "output", "", "output profile YAML path")
 	return cmd
 }
 
