@@ -69,6 +69,19 @@ go build -o bin/coherencelab ./cmd/coherencelab
 echo $?  # 0 = pass, 1 = critical failure or score below threshold
 ```
 
+### Import httpcloak session
+
+```bash
+coherencelab scan --import session.json --adapter httpcloak --profiles profiles
+```
+
+### Capture new profile from JSON
+
+```bash
+coherencelab capture --input examples/capture-input.json --output profiles/my-client.yaml
+coherencelab profiles validate --profiles profiles
+```
+
 ## Scan Modes
 
 | Mode | Description |
@@ -255,7 +268,10 @@ coherencelab/
 | TLS probe server + uTLS client | ✓ Complete |
 | CLI, Go API, tests, docs | ✓ Complete |
 | Live HTTP/2 SETTINGS capture from wire | Planned — local/live uses profile-configured SETTINGS |
-| Adapter plugins (httpcloak, Playwright) | Planned |
+| httpcloak import adapter | ✓ Complete |
+| Profile capture command | ✓ Complete |
+| GitHub Actions CI | ✓ Complete |
+| Adapter plugins (Playwright, curl-impersonate) | Planned |
 | JS runtime probes (WebGL, navigator) | Planned |
 | Profile auto-capture from real browser | Planned |
 | Web UI + GitHub Action | Planned |
