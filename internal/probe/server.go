@@ -2,6 +2,7 @@ package probe
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,18 +14,20 @@ import (
 
 	utls "github.com/refraction-networking/utls"
 
+	"github.com/coherencelab/coherencelab/internal/h2wire"
 	"github.com/coherencelab/coherencelab/internal/signal"
 	"github.com/coherencelab/coherencelab/internal/tlsfp"
 )
 
 // Observation is a recorded probe result from a client connection.
 type Observation struct {
-	Timestamp   time.Time         `json:"timestamp"`
-	RemoteAddr  string            `json:"remote_addr"`
-	UserAgent   string            `json:"user_agent"`
-	Headers     map[string]string `json:"headers"`
-	HeaderOrder []string          `json:"header_order"`
+	Timestamp   time.Time              `json:"timestamp"`
+	RemoteAddr  string                 `json:"remote_addr"`
+	UserAgent   string                 `json:"user_agent"`
+	Headers     map[string]string      `json:"headers"`
+	HeaderOrder []string               `json:"header_order"`
 	TLS         *signal.TLSObservation `json:"tls,omitempty"`
+	H2          *signal.H2Observation  `json:"http2,omitempty"`
 }
 
 // Server is a TLS probe server that captures client identity signals.
@@ -32,12 +35,16 @@ type Server struct {
 	Addr   string
 	mu     sync.RWMutex
 	logs   []Observation
+	h2ByAddr map[string]*signal.H2Observation
 	server *http.Server
 }
 
 // New creates a probe server.
 func New(addr string) *Server {
-	return &Server{Addr: addr}
+	return &Server{
+		Addr:     addr,
+		h2ByAddr: make(map[string]*signal.H2Observation),
+	}
 }
 
 // Start launches the probe server.
@@ -70,13 +77,62 @@ func (s *Server) Start() error {
 		Handler:      mux,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			return context.WithValue(ctx, connContextKey{}, c)
+		},
 	}
 	go func() {
-		if err := s.server.Serve(tlsLn); err != nil && err != http.ErrServerClosed {
+		if err := s.server.Serve(&h2CaptureListener{Listener: tlsLn, srv: s}); err != nil && err != http.ErrServerClosed {
 			log.Printf("probe server error: %v", err)
 		}
 	}()
 	return nil
+}
+
+type connContextKey struct{}
+
+type h2CaptureListener struct {
+	net.Listener
+	srv *Server
+}
+
+func (l *h2CaptureListener) Accept() (net.Conn, error) {
+	conn, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	return &h2TrackedConn{
+		Conn: h2wire.NewCaptureConn(conn),
+		srv:  l.srv,
+	}, nil
+}
+
+type h2TrackedConn struct {
+	net.Conn
+	srv *Server
+}
+
+func (c *h2TrackedConn) Close() error {
+	if cap, ok := c.Conn.(*h2wire.CaptureConn); ok {
+		if obs := cap.Observation(); obs != nil {
+			c.srv.storeH2(c.RemoteAddr().String(), obs)
+		}
+	}
+	return c.Conn.Close()
+}
+
+func (s *Server) storeH2(addr string, obs *signal.H2Observation) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.h2ByAddr[addr] = obs
+}
+
+func (s *Server) takeH2(addr string) *signal.H2Observation {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	obs := s.h2ByAddr[addr]
+	delete(s.h2ByAddr, addr)
+	return obs
 }
 
 // Stop gracefully shuts down the server.
@@ -118,10 +174,23 @@ func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
 
 	obs := Observation{
 		Timestamp:   time.Now().UTC(),
-		RemoteAddr:    r.RemoteAddr,
+		RemoteAddr:  r.RemoteAddr,
 		UserAgent:   r.Header.Get("User-Agent"),
 		Headers:     headers,
 		HeaderOrder: order,
+	}
+
+	if r.TLS != nil {
+		EnrichWithTLS(&obs, *r.TLS)
+	}
+	if h2 := s.takeH2(r.RemoteAddr); h2 != nil {
+		obs.H2 = h2
+	} else if conn, ok := r.Context().Value(connContextKey{}).(net.Conn); ok {
+		if cap, ok := conn.(*h2TrackedConn); ok {
+			if inner, ok := cap.Conn.(*h2wire.CaptureConn); ok {
+				obs.H2 = inner.Observation()
+			}
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -175,7 +244,7 @@ func splitComma(s string) []string {
 }
 
 // EnrichWithTLS adds TLS metadata when available from connection state.
-func EnrichWithTLS(obs *Observation, state utls.ConnectionState) {
+func EnrichWithTLS(obs *Observation, state tls.ConnectionState) {
 	obs.TLS = &signal.TLSObservation{
 		Version:     tlsfp.VersionString(state.Version),
 		CipherSuite: tlsfp.CipherSuiteName(state.CipherSuite),

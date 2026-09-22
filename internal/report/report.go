@@ -90,6 +90,17 @@ func writeText(w io.Writer, rep *scan.Report) error {
 				fmt.Fprintf(w, "  JA3:                %s\n", rep.Signals.TLS.JA3)
 			}
 		}
+		if rep.Signals.H2 != nil {
+			src := rep.Signals.H2.Source
+			if src == "" {
+				src = "unknown"
+			}
+			fmt.Fprintf(w, "  HTTP/2:             table=%d window=%d concurrent=%d (source=%s)\n",
+				rep.Signals.H2.HeaderTableSize,
+				rep.Signals.H2.InitialWindowSize,
+				rep.Signals.H2.MaxConcurrent,
+				src)
+		}
 		fmt.Fprintln(w)
 	}
 

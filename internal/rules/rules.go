@@ -347,7 +347,7 @@ func http2SettingsRule() Rule {
 			}
 			var diffs []string
 			for _, c := range checks {
-				if c.expected == 0 {
+				if c.expected == 0 || !s.H2.HasSetting(c.name) {
 					continue
 				}
 				total++

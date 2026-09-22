@@ -35,12 +35,23 @@ type TLSObservation struct {
 }
 
 type H2Observation struct {
-	HeaderTableSize   uint32 `json:"header_table_size"`
-	EnablePush        uint32 `json:"enable_push"`
-	MaxConcurrent     uint32 `json:"max_concurrent_streams"`
-	InitialWindowSize uint32 `json:"initial_window_size"`
-	MaxFrameSize      uint32 `json:"max_frame_size"`
-	MaxHeaderListSize uint32 `json:"max_header_list_size"`
+	HeaderTableSize   uint32          `json:"header_table_size"`
+	EnablePush        uint32          `json:"enable_push"`
+	MaxConcurrent     uint32          `json:"max_concurrent_streams"`
+	InitialWindowSize uint32          `json:"initial_window_size"`
+	MaxFrameSize      uint32          `json:"max_frame_size"`
+	MaxHeaderListSize uint32          `json:"max_header_list_size"`
+	Source            string          `json:"source,omitempty"`
+	Present           map[string]bool `json:"present,omitempty"`
+}
+
+// HasSetting reports whether a setting was present on the wire.
+// Profile-sourced observations treat all settings as present.
+func (h *H2Observation) HasSetting(name string) bool {
+	if h == nil || h.Source != "wire" || h.Present == nil {
+		return true
+	}
+	return h.Present[name]
 }
 
 // FromRequest builds a snapshot from incoming HTTP headers.

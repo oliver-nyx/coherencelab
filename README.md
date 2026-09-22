@@ -56,16 +56,18 @@ go build -o bin/coherencelab ./cmd/coherencelab
 ./bin/coherencelab demo --profiles profiles
 ```
 
-### Live probe (real TLS handshake)
+### Live probe (real TLS handshake + H2 SETTINGS capture)
 
 ```bash
 # Terminal 1 — start probe server
 ./bin/coherencelab serve --addr 127.0.0.1:8443
 
-# Terminal 2 — scan against it
+# Terminal 2 — scan against it (captures HTTP/2 SETTINGS from the wire)
 ./bin/coherencelab scan --profile chrome-131-win --mode live \
-  --probe https://127.0.0.1:8443/probe --profiles profiles
+  --probe https://127.0.0.1:8443/probe --profiles profiles --insecure
 ```
+
+Live mode captures the actual HTTP/2 SETTINGS frame sent on the wire and compares it to the profile. Local mode still validates configured SETTINGS offline.
 
 ### CI integration
 
@@ -264,6 +266,7 @@ coherencelab/
 │   ├── rules/              18 coherence rules engine
 │   ├── score/              Weighted scoring + grading
 │   ├── client/             uTLS HTTP client + header builder
+│   ├── h2wire/             HTTP/2 SETTINGS wire capture
 │   ├── probe/              Local TLS probe server
 │   ├── scan/               Scan orchestration (local/live/mutate)
 │   ├── tlsfp/              JA3/JA4 + uTLS preset mapping
@@ -291,7 +294,7 @@ coherencelab/
 | Local + mutate + live scan modes | ✓ Complete |
 | TLS probe server + uTLS client | ✓ Complete |
 | CLI, Go API, tests, docs | ✓ Complete |
-| Live HTTP/2 SETTINGS capture from wire | Planned — local/live uses profile-configured SETTINGS |
+| Live HTTP/2 SETTINGS capture from wire | ✓ Complete |
 | httpcloak import adapter | ✓ Complete |
 | Profile capture command | ✓ Complete |
 | GitHub Actions CI | ✓ Complete |
