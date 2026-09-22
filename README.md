@@ -75,6 +75,12 @@ echo $?  # 0 = pass, 1 = critical failure or score below threshold
 coherencelab scan --import session.json --adapter httpcloak --profiles profiles
 ```
 
+### Import Playwright / patchright session
+
+```bash
+coherencelab scan --import pw-export.json --adapter playwright --profiles profiles
+```
+
 ### Capture new profile from JSON
 
 ```bash
@@ -271,7 +277,8 @@ coherencelab/
 | httpcloak import adapter | ✓ Complete |
 | Profile capture command | ✓ Complete |
 | GitHub Actions CI | ✓ Complete |
-| Adapter plugins (Playwright, curl-impersonate) | Planned |
+| Playwright / patchright import adapter | ✓ Complete |
+| curl-impersonate adapter | Planned |
 | JS runtime probes (WebGL, navigator) | Planned |
 | Profile auto-capture from real browser | Planned |
 | Web UI + GitHub Action | Planned |

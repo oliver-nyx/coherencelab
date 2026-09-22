@@ -10,8 +10,10 @@ import (
 	"github.com/spf13/cobra"
 
 	httpcloakadapter "github.com/coherencelab/coherencelab/internal/adapters/httpcloak"
+	pwadapter "github.com/coherencelab/coherencelab/internal/adapters/playwright"
 	"github.com/coherencelab/coherencelab/internal/capture"
 	"github.com/coherencelab/coherencelab/internal/profile"
+	"github.com/coherencelab/coherencelab/internal/signal"
 	"github.com/coherencelab/coherencelab/internal/probe"
 	"github.com/coherencelab/coherencelab/internal/report"
 	"github.com/coherencelab/coherencelab/internal/scan"
@@ -79,10 +81,7 @@ func scanCmd() *cobra.Command {
 			}
 
 			if importPath != "" {
-				if adapter != "httpcloak" && adapter != "" {
-					return fmt.Errorf("unsupported adapter %q (supported: httpcloak)", adapter)
-				}
-				snap, p, err := httpcloakadapter.ScanExport(importPath, profilesDir, profileID)
+				snap, p, err := loadImport(adapter, importPath, profileID)
 				if err != nil {
 					return err
 				}
@@ -131,7 +130,7 @@ func scanCmd() *cobra.Command {
 	cmd.Flags().StringVar(&probeURL, "probe", "", "probe URL for live mode")
 	cmd.Flags().StringVar(&mutate, "mutate", "", "mutation for mutate mode: wrong-platform, wrong-browser, automation-leak, tls-mismatch")
 	cmd.Flags().StringVar(&importPath, "import", "", "JSON session export to scan (httpcloak adapter)")
-	cmd.Flags().StringVar(&adapter, "adapter", "httpcloak", "adapter for --import")
+	cmd.Flags().StringVar(&adapter, "adapter", "httpcloak", "adapter for --import: httpcloak, playwright")
 	cmd.Flags().BoolVar(&insecure, "insecure", false, "skip TLS verify for live probe (local testing)")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "write report to file")
 	cmd.Flags().StringVar(&format, "format", "text", "output format: text, json")
@@ -310,8 +309,19 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.0.0")
+			fmt.Println("coherencelab v1.1.0")
 		},
+	}
+}
+
+func loadImport(adapterName, path, profileID string) (*signal.Snapshot, *profile.Profile, error) {
+	switch adapterName {
+	case "httpcloak", "":
+		return httpcloakadapter.ScanExport(path, profilesDir, profileID)
+	case "playwright", "patchright":
+		return pwadapter.ScanExport(path, profilesDir, profileID)
+	default:
+		return nil, nil, fmt.Errorf("unsupported adapter %q (supported: httpcloak, playwright)", adapterName)
 	}
 }
 
