@@ -14,14 +14,21 @@ import (
 // ClientHelloSpecFromProfile maps profile utls_client_id to uTLS hello spec.
 func ClientHelloID(clientID string) utls.ClientHelloID {
 	switch strings.ToLower(clientID) {
+	case "chrome_133", "chrome-133":
+		return utls.HelloChrome_133
+	case "chrome_132", "chrome-132":
+		// No dedicated Chrome 132 parrot in uTLS; 131 is the closest.
+		return utls.HelloChrome_131
 	case "chrome_131", "chrome-131":
-		return utls.HelloChrome_Auto
-	case "chrome_120":
+		return utls.HelloChrome_131
+	case "chrome_120", "chrome-120":
 		return utls.HelloChrome_120
 	case "firefox_120", "firefox-120", "firefox_133", "firefox-133":
 		return utls.HelloFirefox_Auto
-	case "safari_16_0", "safari-16", "safari_18", "safari-18", "safari_ios_18":
+	case "safari_16_0", "safari-16", "safari_18", "safari-18":
 		return utls.HelloSafari_Auto
+	case "safari_ios_18", "safari-ios-18", "ios_14", "ios-14":
+		return utls.HelloIOS_Auto
 	case "edge_106", "edge-106":
 		return utls.HelloEdge_Auto
 	default:

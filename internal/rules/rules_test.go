@@ -91,3 +91,46 @@ func TestOrderSimilarity(t *testing.T) {
 		t.Fatalf("expected reasonable similarity, got %f", score)
 	}
 }
+
+func TestBrowserConsistentCriOS(t *testing.T) {
+	ua := "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.6778.154 Mobile/15E148 Safari/604.1"
+	if !browserConsistent(ua, "", "chrome") {
+		t.Fatal("expected CriOS without Client Hints to be consistent")
+	}
+}
+
+func TestBrowserConsistentOpera(t *testing.T) {
+	ua := "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 OPR/116.0.0.0"
+	ch := `"Opera";v="116", "Chromium";v="131", "Not A(Brand";v="24"`
+	if !browserConsistent(ua, ch, "opera") {
+		t.Fatal("expected Opera consistency")
+	}
+}
+
+func TestChromeIOSUsesWebKitTLS(t *testing.T) {
+	p := &profile.Profile{
+		ID: "chrome-131-ios", Name: "Chrome iOS", Browser: "chrome", Platform: "ios",
+		UserAgent: profile.UserAgentSpec{
+			Value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.6778.154 Mobile/15E148 Safari/604.1",
+			Pattern: "CriOS/131", MatchMode: "contains", Major: 131,
+		},
+		TLS:   profile.TLSSpec{ALPN: []string{"h2"}, UTLSClientID: "safari_ios_18"},
+		HTTP2: profile.HTTP2Spec{HeaderTableSize: 4096, MaxConcurrent: 100},
+		AcceptLanguage: profile.AcceptLanguageSpec{Primary: "en-US"},
+	}
+	s := &signal.Snapshot{
+		UserAgent: p.UserAgent.Value,
+		AcceptLanguage: "en-US,en;q=0.9",
+		TLS: &signal.TLSObservation{UTLSClientID: "safari_ios_18", Version: "TLS 1.3", ALPN: "h2"},
+		H2:  &signal.H2Observation{HeaderTableSize: 4096, MaxConcurrent: 100},
+	}
+	findings := Evaluate(p, s, DefaultRules())
+	for _, f := range findings {
+		if f.ID == "cross.chrome_tls_ua" && !f.Passed {
+			t.Fatalf("CriOS+WebKit TLS should pass: %+v", f)
+		}
+		if !f.Passed && f.Severity == SeverityCritical {
+			t.Fatalf("unexpected critical failure %s: %+v", f.ID, f)
+		}
+	}
+}

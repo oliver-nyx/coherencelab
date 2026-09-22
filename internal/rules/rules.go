@@ -103,9 +103,14 @@ func secCHUAVersionRule() Rule {
 			expected := normalizeQuotes(p.ClientHints.SecCHUA)
 			actual := normalizeQuotes(s.SecCHUA)
 			passed := strings.Contains(actual, extractBrandCore(expected)) || actual == expected
-			if p.Browser == "chrome" || p.Browser == "edge" {
+			switch p.Browser {
+			case "chrome", "edge":
 				passed = strings.Contains(actual, fmt.Sprintf(`"Google Chrome";v="%d"`, p.UserAgent.Major)) ||
 					strings.Contains(actual, fmt.Sprintf(`"Chromium";v="%d"`, p.UserAgent.Major)) ||
+					actual == expected
+			case "opera":
+				passed = strings.Contains(actual, "Opera") ||
+					strings.Contains(actual, "Chromium") ||
 					actual == expected
 			}
 			return finding("hints.sec_ch_ua", CategoryClientHints, SeverityHigh, 12,
@@ -373,13 +378,22 @@ func crossLayerChromeRule() Rule {
 		ID: "cross.chrome_tls_ua", Category: CategoryCrossLayer, Severity: SeverityCritical, Weight: 12,
 		Title: "Chromium User-Agent aligns with Chromium TLS fingerprint",
 		Check: func(p *profile.Profile, s *signal.Snapshot) Finding {
-			if p.Browser != "chrome" && p.Browser != "edge" {
+			if p.Browser != "chrome" && p.Browser != "edge" && p.Browser != "opera" {
 				return skipped("cross.chrome_tls_ua", CategoryCrossLayer, "Chromium User-Agent aligns with Chromium TLS fingerprint")
 			}
 			if s.TLS == nil {
 				return skipped("cross.chrome_tls_ua", CategoryCrossLayer, "Chromium User-Agent aligns with Chromium TLS fingerprint")
 			}
-			uaChromium := strings.Contains(s.UserAgent, "Chrome/") || strings.Contains(s.UserAgent, "Edg/")
+			uaLower := strings.ToLower(s.UserAgent)
+			// Chrome on iOS (CriOS) uses WebKit networking — Safari/iOS TLS is correct.
+			if strings.Contains(uaLower, "crios/") || p.Platform == "ios" {
+				tlsIOS := iosTLSPreset(p.TLS.UTLSClientID) || iosTLSPreset(s.TLS.UTLSClientID)
+				passed := strings.Contains(uaLower, "crios/") && tlsIOS
+				return finding("cross.chrome_tls_ua", CategoryCrossLayer, SeverityCritical, 12,
+					"Chrome iOS (CriOS) aligns with WebKit/iOS TLS fingerprint",
+					p.TLS.UTLSClientID, s.TLS.UTLSClientID+" ja3="+s.TLS.JA3, passed)
+			}
+			uaChromium := strings.Contains(s.UserAgent, "Chrome/") || strings.Contains(s.UserAgent, "Edg/") || strings.Contains(s.UserAgent, "OPR/")
 			tlsChromium := chromiumTLSPreset(p.TLS.UTLSClientID) || chromiumTLSPreset(s.TLS.UTLSClientID)
 			passed := uaChromium && (tlsChromium || s.TLS.JA3 != "")
 			return finding("cross.chrome_tls_ua", CategoryCrossLayer, SeverityCritical, 12,
@@ -392,6 +406,11 @@ func crossLayerChromeRule() Rule {
 func chromiumTLSPreset(id string) bool {
 	id = strings.ToLower(id)
 	return strings.Contains(id, "chrome") || strings.Contains(id, "edge") || strings.Contains(id, "chromium")
+}
+
+func iosTLSPreset(id string) bool {
+	id = strings.ToLower(id)
+	return strings.Contains(id, "safari") || strings.Contains(id, "ios")
 }
 
 func crossLayerFirefoxRule() Rule {
@@ -496,11 +515,17 @@ func browserConsistent(ua, secCHUA, browser string) bool {
 	chLower := strings.ToLower(secCHUA)
 	switch browser {
 	case "chrome", "edge":
+		// CriOS has no Client Hints; desktop Chrome requires brand hints.
+		if strings.Contains(uaLower, "crios/") {
+			return secCHUA == "" || strings.Contains(chLower, "chrome") || strings.Contains(chLower, "chromium")
+		}
 		return strings.Contains(uaLower, "chrome/") && (strings.Contains(chLower, "chrome") || strings.Contains(chLower, "chromium"))
+	case "opera":
+		return strings.Contains(uaLower, "opr/") && (strings.Contains(chLower, "opera") || strings.Contains(chLower, "chromium"))
 	case "firefox":
 		return strings.Contains(uaLower, "firefox/") && secCHUA == ""
 	case "safari":
-		return strings.Contains(uaLower, "safari/") && !strings.Contains(uaLower, "chrome/")
+		return strings.Contains(uaLower, "safari/") && !strings.Contains(uaLower, "chrome/") && !strings.Contains(uaLower, "crios/")
 	default:
 		return true
 	}

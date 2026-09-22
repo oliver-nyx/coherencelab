@@ -27,6 +27,11 @@ var PresetMap = map[string]string{
 	"chrome131windows": "chrome-131-win",
 	"chrome131macos":   "chrome-131-mac",
 	"chrome131linux":   "chrome-131-linux",
+	"chrome131ios":     "chrome-131-ios",
+	"chrome132":        "chrome-132-win",
+	"chrome132windows": "chrome-132-win",
+	"chrome132macos":   "chrome-132-mac",
+	"chrome132linux":   "chrome-132-linux",
 	"chrome120":        "chrome-120-win",
 	"chrome120windows": "chrome-120-win",
 	"firefox133":       "firefox-133-win",
@@ -36,6 +41,8 @@ var PresetMap = map[string]string{
 	"safari15_5":       "safari-18-mac",
 	"edge131":          "edge-131-win",
 	"edge101":          "edge-131-win",
+	"opera116":         "opera-116-win",
+	"opera":            "opera-116-win",
 }
 
 // LoadExport reads a JSON export file.

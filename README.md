@@ -134,14 +134,18 @@ coherencelab profiles validate --profiles profiles
 
 ## Browser Profiles
 
-**13 built-in profiles** in `profiles/` covering major browser × platform combinations:
+**18 built-in profiles** in `profiles/` covering major browser × platform combinations:
 
 | ID | Browser | Platform |
 |----|---------|----------|
+| `chrome-132-win` | Chrome 132 | Windows |
+| `chrome-132-mac` | Chrome 132 | macOS |
+| `chrome-132-linux` | Chrome 132 | Linux |
 | `chrome-131-win` | Chrome 131 | Windows |
 | `chrome-131-mac` | Chrome 131 | macOS |
 | `chrome-131-linux` | Chrome 131 | Linux |
 | `chrome-131-android` | Chrome 131 | Android |
+| `chrome-131-ios` | Chrome 131 (CriOS) | iOS |
 | `chrome-120-win` | Chrome 120 | Windows |
 | `firefox-133-win` | Firefox 133 | Windows |
 | `firefox-133-mac` | Firefox 133 | macOS |
@@ -151,6 +155,7 @@ coherencelab profiles validate --profiles profiles
 | `edge-131-win` | Edge 131 | Windows |
 | `edge-131-mac` | Edge 131 | macOS |
 | `brave-131-win` | Brave 131 | Windows |
+| `opera-116-win` | Opera 116 | Windows |
 
 Validate the full library:
 
@@ -290,7 +295,7 @@ coherencelab/
 | Area | Status |
 |------|--------|
 | 18-rule coherence engine | ✓ Complete |
-| 13 browser profiles | ✓ Complete |
+| 18 browser profiles | ✓ Complete |
 | Local + mutate + live scan modes | ✓ Complete |
 | TLS probe server + uTLS client | ✓ Complete |
 | CLI, Go API, tests, docs | ✓ Complete |

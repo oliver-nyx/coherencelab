@@ -15,8 +15,8 @@ func TestAllProfilesCoherentLocally(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(profiles) < 12 {
-		t.Fatalf("expected at least 12 profiles, got %d", len(profiles))
+	if len(profiles) < 17 {
+		t.Fatalf("expected at least 17 profiles, got %d", len(profiles))
 	}
 
 	ctx := context.Background()

@@ -152,6 +152,10 @@ func inferFromUA(ua string) string {
 			return "firefox-133-linux"
 		}
 		return "firefox-133-win"
+	case strings.Contains(ua, "opr/"):
+		return "opera-116-win"
+	case strings.Contains(ua, "crios/"):
+		return "chrome-131-ios"
 	case strings.Contains(ua, "iphone") || strings.Contains(ua, "ipad"):
 		return "safari-18-ios"
 	case strings.Contains(ua, "mac os x") && strings.Contains(ua, "version/") && !strings.Contains(ua, "chrome/"):

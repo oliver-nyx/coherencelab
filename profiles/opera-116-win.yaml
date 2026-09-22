@@ -1,0 +1,75 @@
+id: opera-116-win
+name: Opera 116 (Windows)
+browser: opera
+version: "116"
+platform: windows
+engine: blink
+description: >
+  Opera 116 on Windows — Chromium 131 fork. Distinct Sec-Ch-Ua Opera brand
+  with Chromium TLS; a frequent source of brand/TLS mismatches when spoofed.
+tags:
+  - opera
+  - windows
+  - desktop
+  - chromium
+
+user_agent:
+  value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 OPR/116.0.0.0"
+  pattern: "Chrome/131.0.0.0 Safari/537.36 OPR/116.0.0.0"
+  match_mode: contains
+  major: 116
+  full_version: "116.0.5366.35"
+  platform: windows
+  mobile: false
+
+client_hints:
+  sec_ch_ua: '"Opera";v="116", "Chromium";v="131", "Not A(Brand";v="24"'
+  sec_ch_ua_mobile: "?0"
+  sec_ch_ua_platform: '"Windows"'
+
+headers:
+  order:
+    - host
+    - sec-ch-ua
+    - sec-ch-ua-mobile
+    - sec-ch-ua-platform
+    - upgrade-insecure-requests
+    - user-agent
+    - accept
+    - sec-fetch-site
+    - sec-fetch-mode
+    - sec-fetch-user
+    - sec-fetch-dest
+    - accept-encoding
+    - accept-language
+  required:
+    Sec-Fetch-Site: none
+    Sec-Fetch-Mode: navigate
+    Sec-Fetch-User: "?1"
+    Sec-Fetch-Dest: document
+  forbidden:
+    - X-Selenium
+    - X-Webdriver
+  accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+  accept_encoding: "gzip, deflate, br, zstd"
+  upgrade_insecure_requests: true
+
+tls:
+  min_version: "TLS 1.2"
+  max_version: "TLS 1.3"
+  alpn:
+    - h2
+    - http/1.1
+  utls_client_id: chrome_131
+
+http2:
+  header_table_size: 65536
+  enable_push: 0
+  max_concurrent_streams: 1000
+  initial_window_size: 6291456
+  max_frame_size: 16384
+  max_header_list_size: 262144
+
+accept_language:
+  pattern: "en-US,en;q=0.9"
+  primary: en-US
