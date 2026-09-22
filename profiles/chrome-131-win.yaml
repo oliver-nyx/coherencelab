@@ -1,0 +1,79 @@
+id: chrome-131-win
+name: Google Chrome 131 (Windows)
+browser: chrome
+version: "131"
+platform: windows
+engine: blink
+description: >
+  Chrome 131 on Windows 10/11. Includes Client Hints, Chrome TLS fingerprint,
+  and standard Chromium HTTP/2 SETTINGS.
+tags:
+  - chrome
+  - windows
+  - desktop
+  - chromium
+
+user_agent:
+  value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+  pattern: "Chrome/131.0.0.0 Safari/537.36"
+  match_mode: contains
+  major: 131
+  full_version: "131.0.6778.86"
+  platform: windows
+  mobile: false
+
+client_hints:
+  sec_ch_ua: '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"'
+  sec_ch_ua_mobile: "?0"
+  sec_ch_ua_platform: '"Windows"'
+  sec_ch_ua_arch: '"x86"'
+  sec_ch_ua_bitness: '"64"'
+
+headers:
+  order:
+    - host
+    - connection
+    - sec-ch-ua
+    - sec-ch-ua-mobile
+    - sec-ch-ua-platform
+    - upgrade-insecure-requests
+    - user-agent
+    - accept
+    - sec-fetch-site
+    - sec-fetch-mode
+    - sec-fetch-user
+    - sec-fetch-dest
+    - accept-encoding
+    - accept-language
+  required:
+    Sec-Fetch-Site: none
+    Sec-Fetch-Mode: navigate
+    Sec-Fetch-User: "?1"
+    Sec-Fetch-Dest: document
+  forbidden:
+    - X-Coherencelab-Test
+    - X-Selenium
+    - X-Webdriver
+  accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"
+  accept_encoding: "gzip, deflate, br, zstd"
+  upgrade_insecure_requests: true
+
+tls:
+  min_version: "TLS 1.2"
+  max_version: "TLS 1.3"
+  alpn:
+    - h2
+    - http/1.1
+  utls_client_id: chrome_131
+
+http2:
+  header_table_size: 65536
+  enable_push: 0
+  max_concurrent_streams: 1000
+  initial_window_size: 6291456
+  max_frame_size: 16384
+  max_header_list_size: 262144
+
+accept_language:
+  pattern: "en-US,en;q=0.9"
+  primary: en-US

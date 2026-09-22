@@ -1,0 +1,9 @@
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+.DS_Store
+.idea/
+.vscode/
+*.json.report
