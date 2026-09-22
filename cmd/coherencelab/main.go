@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	httpcloakadapter "github.com/coherencelab/coherencelab/internal/adapters/httpcloak"
 	"github.com/coherencelab/coherencelab/internal/profile"
 	"github.com/coherencelab/coherencelab/internal/probe"
 	"github.com/coherencelab/coherencelab/internal/report"
@@ -51,6 +52,9 @@ func scanCmd() *cobra.Command {
 		mode      string
 		probeURL  string
 		mutate    string
+		importPath string
+		adapter   string
+		insecure  bool
 		minScore  float64
 		ci        bool
 	)
@@ -62,23 +66,39 @@ func scanCmd() *cobra.Command {
   coherencelab scan --profile chrome-131-win --mode mutate --mutate wrong-platform
   coherencelab scan --profile chrome-131-win --ci --min-score 90`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if profileID == "" {
-				return fmt.Errorf("--profile is required")
-			}
-			p, err := profile.FindByID(profilesDir, profileID)
-			if err != nil {
-				return err
-			}
-
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 			defer cancel()
 
-			rep, err := scan.Run(ctx, scan.Options{
-				Profile:  p,
+			opts := scan.Options{
 				Mode:     scan.Mode(mode),
 				ProbeURL: probeURL,
 				Mutate:   mutate,
-			})
+				Insecure: insecure,
+			}
+
+			if importPath != "" {
+				if adapter != "httpcloak" && adapter != "" {
+					return fmt.Errorf("unsupported adapter %q (supported: httpcloak)", adapter)
+				}
+				snap, p, err := httpcloakadapter.ScanExport(importPath, profilesDir, profileID)
+				if err != nil {
+					return err
+				}
+				opts.Profile = p
+				opts.Mode = scan.ModeImport
+				opts.Snapshot = snap
+			} else {
+				if profileID == "" {
+					return fmt.Errorf("--profile is required")
+				}
+				p, err := profile.FindByID(profilesDir, profileID)
+				if err != nil {
+					return err
+				}
+				opts.Profile = p
+			}
+
+			rep, err := scan.Run(ctx, opts)
 			if err != nil {
 				return err
 			}
@@ -108,6 +128,9 @@ func scanCmd() *cobra.Command {
 	cmd.Flags().StringVar(&mode, "mode", "local", "scan mode: local, live, mutate")
 	cmd.Flags().StringVar(&probeURL, "probe", "", "probe URL for live mode")
 	cmd.Flags().StringVar(&mutate, "mutate", "", "mutation for mutate mode: wrong-platform, wrong-browser, automation-leak, tls-mismatch")
+	cmd.Flags().StringVar(&importPath, "import", "", "JSON session export to scan (httpcloak adapter)")
+	cmd.Flags().StringVar(&adapter, "adapter", "httpcloak", "adapter for --import")
+	cmd.Flags().BoolVar(&insecure, "insecure", false, "skip TLS verify for live probe (local testing)")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "write report to file")
 	cmd.Flags().StringVar(&format, "format", "text", "output format: text, json")
 	cmd.Flags().Float64Var(&minScore, "min-score", 90, "minimum score percentage for --ci")

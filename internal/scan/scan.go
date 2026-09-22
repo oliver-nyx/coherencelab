@@ -19,6 +19,7 @@ const (
 	ModeLocal  Mode = "local"
 	ModeLive   Mode = "live"
 	ModeMutate Mode = "mutate"
+	ModeImport Mode = "import"
 )
 
 // Options configures a coherence scan.
@@ -28,6 +29,8 @@ type Options struct {
 	ProbeURL  string
 	Mutate    string // e.g. "wrong-platform" for intentional mismatch demo
 	Timeout   time.Duration
+	Insecure  bool
+	Snapshot  *signal.Snapshot // for import mode
 }
 
 // Report is the full scan output.
@@ -63,13 +66,18 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 		if opts.ProbeURL == "" {
 			return nil, fmt.Errorf("probe URL required for live mode")
 		}
-		snap, _, err = client.Probe(ctx, opts.ProbeURL, opts.Profile)
+		snap, _, err = client.Probe(ctx, opts.ProbeURL, opts.Profile, opts.Insecure)
 		if err != nil {
 			return nil, err
 		}
 	case ModeMutate:
 		snap = client.LocalSnapshot(opts.Profile)
 		applyMutation(snap, opts.Mutate)
+	case ModeImport:
+		if opts.Snapshot == nil {
+			return nil, fmt.Errorf("snapshot required for import mode")
+		}
+		snap = opts.Snapshot
 	default:
 		return nil, fmt.Errorf("unknown mode %q", opts.Mode)
 	}

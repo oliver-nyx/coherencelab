@@ -20,8 +20,9 @@ import (
 
 // Config configures a coherence-aware HTTP client.
 type Config struct {
-	Profile *profile.Profile
-	Timeout time.Duration
+	Profile  *profile.Profile
+	Timeout  time.Duration
+	Insecure bool
 }
 
 // DialResult captures TLS + H2 metadata from the connection.
@@ -53,7 +54,7 @@ func BuildTransport(cfg Config) (*http.Transport, *DialResult, error) {
 		}
 		tlsConn := utls.UClient(conn, &utls.Config{
 			ServerName:         host,
-			InsecureSkipVerify: false,
+			InsecureSkipVerify: cfg.Insecure,
 			NextProtos:         cfg.Profile.TLS.ALPN,
 		}, helloID)
 
@@ -148,8 +149,8 @@ func ApplyProfileHeaders(req *http.Request, p *profile.Profile) []string {
 }
 
 // Probe sends a request and returns observed signals.
-func Probe(ctx context.Context, probeURL string, p *profile.Profile) (*signal.Snapshot, *DialResult, error) {
-	transport, dialResult, err := BuildTransport(Config{Profile: p})
+func Probe(ctx context.Context, probeURL string, p *profile.Profile, insecure bool) (*signal.Snapshot, *DialResult, error) {
+	transport, dialResult, err := BuildTransport(Config{Profile: p, Insecure: insecure})
 	if err != nil {
 		return nil, nil, err
 	}
