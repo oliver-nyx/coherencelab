@@ -9,11 +9,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	httpcloakadapter "github.com/coherencelab/coherencelab/internal/adapters/httpcloak"
-	pwadapter "github.com/coherencelab/coherencelab/internal/adapters/playwright"
+	"github.com/coherencelab/coherencelab/internal/adapters"
 	"github.com/coherencelab/coherencelab/internal/capture"
+	"github.com/coherencelab/coherencelab/internal/compare"
 	"github.com/coherencelab/coherencelab/internal/profile"
-	"github.com/coherencelab/coherencelab/internal/signal"
 	"github.com/coherencelab/coherencelab/internal/probe"
 	"github.com/coherencelab/coherencelab/internal/report"
 	"github.com/coherencelab/coherencelab/internal/scan"
@@ -42,6 +41,7 @@ bot detection failures in production HTTP clients and automation stacks.`,
 	cmd.PersistentFlags().StringVar(&profilesDir, "profiles", defaultProfilesDir(), "path to browser profiles directory")
 
 	cmd.AddCommand(scanCmd())
+	cmd.AddCommand(compareCmd())
 	cmd.AddCommand(captureCmd())
 	cmd.AddCommand(profilesCmd())
 	cmd.AddCommand(serveCmd())
@@ -81,7 +81,7 @@ func scanCmd() *cobra.Command {
 			}
 
 			if importPath != "" {
-				snap, p, err := loadImport(adapter, importPath, profileID)
+				snap, p, err := adapters.ScanExport(adapter, importPath, profilesDir, profileID)
 				if err != nil {
 					return err
 				}
@@ -130,7 +130,7 @@ func scanCmd() *cobra.Command {
 	cmd.Flags().StringVar(&probeURL, "probe", "", "probe URL for live mode")
 	cmd.Flags().StringVar(&mutate, "mutate", "", "mutation for mutate mode: wrong-platform, wrong-browser, automation-leak, tls-mismatch")
 	cmd.Flags().StringVar(&importPath, "import", "", "JSON session export to scan (httpcloak adapter)")
-	cmd.Flags().StringVar(&adapter, "adapter", "httpcloak", "adapter for --import: httpcloak, playwright")
+	cmd.Flags().StringVar(&adapter, "adapter", "httpcloak", "adapter for --import: httpcloak, playwright, curl")
 	cmd.Flags().BoolVar(&insecure, "insecure", false, "skip TLS verify for live probe (local testing)")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "write report to file")
 	cmd.Flags().StringVar(&format, "format", "text", "output format: text, json")
@@ -223,6 +223,72 @@ func profilesCmd() *cobra.Command {
 	return cmd
 }
 
+func compareCmd() *cobra.Command {
+	var (
+		pathA, pathB       string
+		adapterA, adapterB string
+		defaultAdapter     string
+		labelA, labelB     string
+		outFormat          string
+	)
+	cmd := &cobra.Command{
+		Use:   "compare",
+		Short: "Compare two session exports for identity mismatches",
+		Example: `  coherencelab compare --a chrome.json --b broken.json --adapter httpcloak
+  coherencelab compare --a pw.json --adapter-a playwright --b curl.json --adapter-b curl`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if pathA == "" || pathB == "" {
+				return fmt.Errorf("--a and --b are required")
+			}
+			aAdapt := adapterA
+			if aAdapt == "" {
+				aAdapt = defaultAdapter
+			}
+			bAdapt := adapterB
+			if bAdapt == "" {
+				bAdapt = aAdapt
+			}
+			snapA, idA, err := adapters.LoadSnapshot(aAdapt, pathA)
+			if err != nil {
+				return fmt.Errorf("load A: %w", err)
+			}
+			snapB, idB, err := adapters.LoadSnapshot(bAdapt, pathB)
+			if err != nil {
+				return fmt.Errorf("load B: %w", err)
+			}
+			if labelA == "" {
+				labelA = defaultLabel(pathA, idA)
+			}
+			if labelB == "" {
+				labelB = defaultLabel(pathB, idB)
+			}
+			result := compare.Snapshots(labelA, snapA, labelB, snapB)
+			switch outFormat {
+			case "json":
+				return compare.WriteJSON(os.Stdout, result)
+			default:
+				return compare.WriteText(os.Stdout, result)
+			}
+		},
+	}
+	cmd.Flags().StringVar(&pathA, "a", "", "first export JSON path")
+	cmd.Flags().StringVar(&pathB, "b", "", "second export JSON path")
+	cmd.Flags().StringVar(&defaultAdapter, "adapter", "httpcloak", "default adapter for both exports")
+	cmd.Flags().StringVar(&adapterA, "adapter-a", "", "adapter for --a (overrides --adapter)")
+	cmd.Flags().StringVar(&adapterB, "adapter-b", "", "adapter for --b (overrides --adapter)")
+	cmd.Flags().StringVar(&labelA, "label-a", "", "display label for A")
+	cmd.Flags().StringVar(&labelB, "label-b", "", "display label for B")
+	cmd.Flags().StringVar(&outFormat, "format", "text", "output format: text, json")
+	return cmd
+}
+
+func defaultLabel(path, profileID string) string {
+	if profileID != "" {
+		return profileID
+	}
+	return filepath.Base(path)
+}
+
 func captureCmd() *cobra.Command {
 	var input, output string
 	cmd := &cobra.Command{
@@ -309,19 +375,8 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.1.0")
+			fmt.Println("coherencelab v1.2.0")
 		},
-	}
-}
-
-func loadImport(adapterName, path, profileID string) (*signal.Snapshot, *profile.Profile, error) {
-	switch adapterName {
-	case "httpcloak", "":
-		return httpcloakadapter.ScanExport(path, profilesDir, profileID)
-	case "playwright", "patchright":
-		return pwadapter.ScanExport(path, profilesDir, profileID)
-	default:
-		return nil, nil, fmt.Errorf("unsupported adapter %q (supported: httpcloak, playwright)", adapterName)
 	}
 }
 

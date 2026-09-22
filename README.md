@@ -1,5 +1,10 @@
 # CoherenceLab
 
+[![CI](https://github.com/oliver-nyx/coherencelab/actions/workflows/ci.yml/badge.svg)](https://github.com/oliver-nyx/coherencelab/actions/workflows/ci.yml)
+[![Go Report](https://img.shields.io/badge/go-1.24+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/oliver-nyx/coherencelab)](https://github.com/oliver-nyx/coherencelab/releases)
+
 **Browser identity consistency validator** — catch the mismatches that get HTTP clients and automation stacks blocked.
 
 Most bot-detection failures are not a single bad fingerprint. They are **cross-layer contradictions**: Chrome TLS with Firefox headers, Windows `Sec-Ch-Ua-Platform` on a Linux User-Agent, HTTP/2 SETTINGS from Safari on a Chromium profile. CoherenceLab scores how well your identity signals align across layers.
@@ -79,6 +84,19 @@ coherencelab scan --import session.json --adapter httpcloak --profiles profiles
 
 ```bash
 coherencelab scan --import pw-export.json --adapter playwright --profiles profiles
+```
+
+### Import curl-impersonate session
+
+```bash
+coherencelab scan --import curl-export.json --adapter curl --profiles profiles
+```
+
+### Compare two exports
+
+```bash
+coherencelab compare --a examples/playwright-export.json --b examples/curl-export.json \
+  --adapter-a playwright --adapter-b curl
 ```
 
 ### Capture new profile from JSON
@@ -278,7 +296,8 @@ coherencelab/
 | Profile capture command | ✓ Complete |
 | GitHub Actions CI | ✓ Complete |
 | Playwright / patchright import adapter | ✓ Complete |
-| curl-impersonate adapter | Planned |
+| curl-impersonate adapter | ✓ Complete |
+| Compare command (diff two exports) | ✓ Complete |
 | JS runtime probes (WebGL, navigator) | Planned |
 | Profile auto-capture from real browser | Planned |
 | Web UI + GitHub Action | Planned |
