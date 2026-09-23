@@ -33,4 +33,4 @@ Look for:
 
 ## Next
 
-[Lab 06 — Capture vs uTLS corpus diff](06-corpus-diff.md)
+[Lab 07 — RFC 9218 PRIORITY_UPDATE](07-priority.md)

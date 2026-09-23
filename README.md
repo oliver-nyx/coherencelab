@@ -40,6 +40,7 @@ Read the code while you run it:
 - [`docs/labs/04-extension-permutation.md`](docs/labs/04-extension-permutation.md)
 - [`docs/labs/05-continuation.md`](docs/labs/05-continuation.md)
 - [`docs/labs/06-corpus-diff.md`](docs/labs/06-corpus-diff.md)
+- [`docs/labs/07-priority.md`](docs/labs/07-priority.md)
 
 ## Coherence scoring (supporting tool)
 
@@ -339,7 +340,8 @@ coherencelab/
 | CONTINUATION merge before HPACK | ✓ Complete |
 | Capture vs uTLS corpus diff | ✓ Complete |
 | Bundled `testdata/corpus` fixtures + `--fixture` | ✓ Complete |
-| RE labs (`lab clienthello|h2|headers|permute|corpus|fixtures`) | ✓ Complete |
+| RFC 9218 PRIORITY_UPDATE + Akamai field 3 | ✓ Complete |
+| RE labs (`lab …` through priority / fixtures) | ✓ Complete |
 | 23-rule coherence engine | ✓ Complete |
 | 18 browser profiles | ✓ Complete |
 | Local + mutate + live scan modes | ✓ Complete |
@@ -372,8 +374,9 @@ coherencelab/
 - [x] CONTINUATION merge + HPACK across fragments
 - [x] Real-browser capture vs uTLS corpus diff
 - [x] Packaged fixtures in `testdata/corpus/` + `--fixture`
-- [ ] PRIORITY_UPDATE / RFC 9218 corpus across browser versions
+- [x] PRIORITY_UPDATE / RFC 9218 (Akamai field 3)
 - [ ] Replace uTLS-synth ClientHello fixtures with live browser pcaps
+- [ ] HTTP/3 / QUIC PRIORITY_UPDATE lab
 
 ## Docs
 
@@ -384,6 +387,7 @@ coherencelab/
 - [Lab 04: Extension permutation entropy](docs/labs/04-extension-permutation.md)
 - [Lab 05: CONTINUATION merge](docs/labs/05-continuation.md)
 - [Lab 06: Capture vs uTLS corpus diff](docs/labs/06-corpus-diff.md)
+- [Lab 07: RFC 9218 PRIORITY_UPDATE](docs/labs/07-priority.md)
 - [GitHub Action](docs/github-action.md)
 - [Blog: Why your HTTP client gets blocked](docs/blog/identity-coherence.md)
 - [JS runtime probes](docs/adapters/js-runtime.md)

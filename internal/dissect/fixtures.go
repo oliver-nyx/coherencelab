@@ -32,9 +32,9 @@ var Catalog = []Fixture{
 	{Name: "safari_ios", Kind: "clienthello", File: "clienthello-safari_ios.bin", UTLSClientID: "ios_14",
 		Source: "utls-synth", Notes: "uTLS iOS Auto parrot; SNI=example.com"},
 	{Name: "h2_chrome", Kind: "h2", File: "h2-chrome-like.bin",
-		Source: "crafted", Notes: "Preface+Chromium SETTINGS+WINDOW_UPDATE+HEADERS/CONTINUATION with m,a,s,p"},
+		Source: "crafted", Notes: "SETTINGS(+NO_RFC7540_PRIORITIES)+WINDOW_UPDATE+PRIORITY_UPDATE(u=0,i)+HEADERS/CONTINUATION m,a,s,p"},
 	{Name: "h2_firefox", Kind: "h2", File: "h2-firefox-like.bin",
-		Source: "crafted", Notes: "Preface+Firefox-like SETTINGS+HEADERS with m,p,a,s"},
+		Source: "crafted", Notes: "Preface+Firefox-like SETTINGS+HEADERS with m,p,a,s (no PRIORITY_UPDATE)"},
 }
 
 // CorpusDir resolves testdata/corpus relative to this package or cwd.

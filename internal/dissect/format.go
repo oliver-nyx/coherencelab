@@ -79,9 +79,28 @@ func FormatH2(w io.Writer, s *H2Session) {
 			fmt.Fprintln(w)
 		}
 	}
+	if len(s.PriorityUpdates) > 0 {
+		fmt.Fprintln(w, "\n── PRIORITY_UPDATE (RFC 9218) ──")
+		for i, pu := range s.PriorityUpdates {
+			fmt.Fprintf(w, "%2d. prioritized_stream=%d value=%q", i+1, pu.PrioritizedStream, pu.RawValue)
+			if pu.Urgency != nil {
+				fmt.Fprintf(w, " u=%d", *pu.Urgency)
+			}
+			if pu.Incremental != nil {
+				fmt.Fprintf(w, " i=%v", *pu.Incremental)
+			}
+			fmt.Fprintln(w)
+			if pu.Note != "" {
+				fmt.Fprintf(w, "    ※ %s\n", pu.Note)
+			}
+		}
+		fmt.Fprintf(w, "Priority fingerprint field: %s\n", s.PriorityFingerprint())
+	}
 	if s.HeaderBlock != nil {
 		fmt.Fprintln(w, "\n── HPACK / pseudo-headers ──")
 		FormatHeaderBlock(w, s.HeaderBlock)
+		fmt.Fprintf(w, "\nAkamai-style H2 fingerprint:\n  %s\n", s.AkamaiH2Fingerprint())
+	} else if len(s.PriorityUpdates) > 0 || len(s.Settings) > 0 {
 		fmt.Fprintf(w, "\nAkamai-style H2 fingerprint:\n  %s\n", s.AkamaiH2Fingerprint())
 	}
 	fmt.Fprintln(w, "\n── Findings ──")

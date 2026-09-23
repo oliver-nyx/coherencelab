@@ -82,9 +82,9 @@ func analyzePseudo(hb *HeaderBlock) {
 //
 //	SETTINGS|WINDOW_UPDATE|PRIORITY|pseudo
 //
-// Example Chrome-like:
+// Example Chrome-like (RFC 9218 era):
 //
-//	1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p
+//	1:65536;2:0;4:6291456;6:262144;9:1|15663105|u=0,i|m,a,s,p
 func (s *H2Session) AkamaiH2Fingerprint() string {
 	var settingsParts []string
 	for _, st := range s.Settings {
@@ -100,13 +100,7 @@ func (s *H2Session) AkamaiH2Fingerprint() string {
 		}
 	}
 
-	prio := "0"
-	for _, fr := range s.Frames {
-		if fr.Type == FramePriority || fr.Type == FramePriorityUpdate {
-			prio = "1"
-			break
-		}
-	}
+	prio := s.PriorityFingerprint()
 
 	pseudo := ""
 	if s.HeaderBlock != nil {

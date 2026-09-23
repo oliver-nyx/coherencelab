@@ -47,14 +47,15 @@ type Frame struct {
 
 // H2Session is a dissected client preface + frame sequence.
 type H2Session struct {
-	HasPreface    bool
-	Frames        []Frame
-	Settings      []H2Setting
-	WindowUpdates []WindowUpdate
-	HeaderBlock   *HeaderBlock
-	HeaderBlocks  []*HeaderBlock
-	Findings      []string
-	Raw           []byte
+	HasPreface      bool
+	Frames          []Frame
+	Settings        []H2Setting
+	WindowUpdates   []WindowUpdate
+	PriorityUpdates []*PriorityUpdate
+	HeaderBlock     *HeaderBlock
+	HeaderBlocks    []*HeaderBlock
+	Findings        []string
+	Raw             []byte
 }
 
 // H2Setting is one SETTINGS parameter.
@@ -146,11 +147,32 @@ func annotateFrame(s *H2Session, fr *Frame) {
 		fr.Detail = fmt.Sprintf("increment=%d stream=%d", inc, fr.Stream)
 		fr.Note = "Connection-level WINDOW_UPDATE right after preface is a browser tell (often 15663105 for Chromium). Naive stacks skip it."
 	case FramePriority:
-		fr.Note = "RFC 7540 PRIORITY on headers is obsolete in browsers migrating to RFC 9218 PRIORITY_UPDATE / NO_RFC7540_PRIORITIES."
-		fr.Detail = fmt.Sprintf("%d bytes", len(fr.Payload))
+		fr.Note = "RFC 7540 PRIORITY — obsolete for modern Chromium (see PRIORITY_UPDATE / NO_RFC7540_PRIORITIES)."
+		if len(fr.Payload) >= 5 {
+			dep := binary.BigEndian.Uint32(fr.Payload[0:4])
+			excl := dep>>31 == 1
+			depID := dep & 0x7fffffff
+			weight := int(fr.Payload[4]) + 1
+			fr.Detail = fmt.Sprintf("dep=%d exclusive=%v weight=%d", depID, excl, weight)
+		} else {
+			fr.Detail = fmt.Sprintf("%d bytes (truncated)", len(fr.Payload))
+		}
 	case FramePriorityUpdate:
-		fr.Note = "RFC 9218 PRIORITY_UPDATE — Chromium ships this. Absence on a Chrome claim is a coherence failure at the H2 layer."
-		fr.Detail = string(fr.Payload)
+		pu, err := ParsePriorityUpdatePayload(fr.Stream, fr.Payload)
+		if err != nil {
+			fr.Detail = err.Error()
+			fr.Note = "Malformed PRIORITY_UPDATE payload"
+		} else {
+			s.PriorityUpdates = append(s.PriorityUpdates, pu)
+			fr.Detail = fmt.Sprintf("stream=%d value=%q", pu.PrioritizedStream, pu.RawValue)
+			if pu.Urgency != nil {
+				fr.Detail += fmt.Sprintf(" urgency=%d", *pu.Urgency)
+			}
+			if pu.Incremental != nil {
+				fr.Detail += fmt.Sprintf(" incremental=%v", *pu.Incremental)
+			}
+			fr.Note = pu.Note
+		}
 	case FrameHeaders:
 		fr.Detail = fmt.Sprintf("flags=0x%02x payload=%d bytes", fr.Flags, len(fr.Payload))
 		if fr.Flags&0x4 == 0 {
@@ -221,11 +243,8 @@ func h2Findings(s *H2Session) []string {
 			out = append(out, "Connection WINDOW_UPDATE increment=15663105 — well-known Chromium post-preface behavior")
 		}
 	}
-	for _, fr := range s.Frames {
-		if fr.Type == FramePriorityUpdate {
-			out = append(out, "PRIORITY_UPDATE observed — RFC 9218 path (Chromium)")
-			break
-		}
+	for _, f := range priorityFindings(s) {
+		out = append(out, f)
 	}
 	for _, fr := range s.Frames {
 		if fr.Type == FrameContinuation {
@@ -297,7 +316,7 @@ func settingNote(id uint16, val uint32) string {
 	case SettingHeaderTableSize:
 		return "HPACK dynamic table budget; Chromium favors 65536."
 	case SettingNoRFC7540Priorities:
-		return "Signals RFC 9218 priority scheme; Chromium sets this."
+		return "RFC 9218: 1 = client will not use RFC 7540 PRIORITY; expect PRIORITY_UPDATE instead (Chromium)."
 	default:
 		return ""
 	}

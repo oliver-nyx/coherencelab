@@ -7,8 +7,8 @@ Checked-in wire samples so labs work on a cold clone — **no Wireshark required
 | File | Source |
 |------|--------|
 | `clienthello-*.bin` | **uTLS-synthesized** via `SynthClientHello` (not a live browser pcap) |
-| `h2-chrome-like.bin` | Crafted preface + Chromium-like SETTINGS/WINDOW_UPDATE + HEADERS/**CONTINUATION** |
-| `h2-firefox-like.bin` | Crafted Firefox-like SETTINGS + `m,p,a,s` HEADERS |
+| `h2-chrome-like.bin` | Crafted Chromium-like session: SETTINGS (+`NO_RFC7540_PRIORITIES`), WINDOW_UPDATE, **PRIORITY_UPDATE** `u=0, i`, HEADERS/**CONTINUATION** |
+| `h2-firefox-like.bin` | Crafted Firefox-like SETTINGS + `m,p,a,s` HEADERS (no EPS) |
 
 Replace ClientHello bins with real browser captures when you have them; keep this README accurate.
 
