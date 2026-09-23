@@ -30,7 +30,8 @@ const (
 	CategoryTLS           Category = "tls"
 	CategoryHTTP2         Category = "http2"
 	CategoryAcceptLanguage Category = "accept_language"
-	CategoryCrossLayer    Category = "cross_layer"
+	CategoryJSRuntime      Category = "js_runtime"
+	CategoryCrossLayer     Category = "cross_layer"
 )
 
 // Finding is a single validation result.
@@ -74,6 +75,11 @@ func DefaultRules() []Rule {
 		tlsALPNRule(),
 		tlsVersionRule(),
 		http2SettingsRule(),
+		jsNavigatorPlatformRule(),
+		jsNavigatorVendorRule(),
+		jsNavigatorWebdriverRule(),
+		jsWebGLRule(),
+		crossJSPlatformRule(),
 		crossLayerChromeRule(),
 		crossLayerFirefoxRule(),
 		crossLayerSafariRule(),

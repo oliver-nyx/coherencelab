@@ -81,6 +81,10 @@ func Snapshots(labelA string, a *signal.Snapshot, labelB string, b *signal.Snaps
 		ha, hb := h2Str(a.H2), h2Str(b.H2)
 		addStr("http2", "settings", ha, hb, SeverityHigh)
 	}
+	if a.JS != nil || b.JS != nil {
+		addStr("js_runtime", "navigator", jsNavStr(a.JS), jsNavStr(b.JS), SeverityCritical)
+		addStr("js_runtime", "webgl", jsWebGLStr(a.JS), jsWebGLStr(b.JS), SeverityMedium)
+	}
 
 	// Cross-layer inference between A's layers
 	if note := crossLayerNote(a); note != "" {
@@ -129,6 +133,25 @@ func h2Str(h *signal.H2Observation) string {
 	return fmt.Sprintf("table=%d concurrent=%d window=%d", h.HeaderTableSize, h.MaxConcurrent, h.InitialWindowSize)
 }
 
+func jsNavStr(js *signal.JSObservation) string {
+	if js == nil || js.Navigator == nil {
+		return ""
+	}
+	n := js.Navigator
+	wd := "unknown"
+	if n.Webdriver != nil {
+		wd = fmt.Sprintf("%v", *n.Webdriver)
+	}
+	return fmt.Sprintf("platform=%s vendor=%q webdriver=%s", n.Platform, n.Vendor, wd)
+}
+
+func jsWebGLStr(js *signal.JSObservation) string {
+	if js == nil || js.WebGL == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s | %s", js.WebGL.Vendor, js.WebGL.Renderer)
+}
+
 func filterEmpty(ss []string) []string {
 	var out []string
 	for _, s := range ss {
@@ -165,6 +188,9 @@ func crossLayerNote(s *signal.Snapshot) string {
 		if strings.Contains(ua, "chrome/") && strings.Contains(strings.ToLower(s.TLS.UTLSClientID), "firefox") {
 			return "Chrome User-Agent with Firefox TLS preset"
 		}
+	}
+	if s.JS != nil && s.JS.Navigator != nil && s.JS.Navigator.Webdriver != nil && *s.JS.Navigator.Webdriver {
+		return "navigator.webdriver is true (automation leak)"
 	}
 	return ""
 }

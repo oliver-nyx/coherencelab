@@ -26,6 +26,7 @@ type Profile struct {
 	TLS             TLSSpec             `yaml:"tls" json:"tls"`
 	HTTP2           HTTP2Spec           `yaml:"http2" json:"http2"`
 	AcceptLanguage  AcceptLanguageSpec  `yaml:"accept_language" json:"accept_language"`
+	JSRuntime       *JSRuntimeSpec      `yaml:"js_runtime,omitempty" json:"js_runtime,omitempty"`
 }
 
 type UserAgentSpec struct {
@@ -78,6 +79,30 @@ type HTTP2Spec struct {
 type AcceptLanguageSpec struct {
 	Pattern string `yaml:"pattern" json:"pattern"`
 	Primary string `yaml:"primary" json:"primary"`
+}
+
+// JSRuntimeSpec describes expected browser JS environment signals.
+type JSRuntimeSpec struct {
+	Navigator *NavigatorSpec `yaml:"navigator,omitempty" json:"navigator,omitempty"`
+	WebGL     *WebGLSpec     `yaml:"webgl,omitempty" json:"webgl,omitempty"`
+}
+
+type NavigatorSpec struct {
+	Platform             string   `yaml:"platform,omitempty" json:"platform,omitempty"`
+	UserAgent            string   `yaml:"user_agent,omitempty" json:"user_agent,omitempty"`
+	Vendor               string   `yaml:"vendor,omitempty" json:"vendor,omitempty"`
+	Language             string   `yaml:"language,omitempty" json:"language,omitempty"`
+	Languages            []string `yaml:"languages,omitempty" json:"languages,omitempty"`
+	HardwareConcurrency  int      `yaml:"hardware_concurrency,omitempty" json:"hardware_concurrency,omitempty"`
+	DeviceMemory         float64  `yaml:"device_memory,omitempty" json:"device_memory,omitempty"`
+	MaxTouchPoints       *int     `yaml:"max_touch_points,omitempty" json:"max_touch_points,omitempty"`
+	Webdriver            *bool    `yaml:"webdriver,omitempty" json:"webdriver,omitempty"`
+}
+
+type WebGLSpec struct {
+	Vendor    string `yaml:"vendor,omitempty" json:"vendor,omitempty"`
+	Renderer  string `yaml:"renderer,omitempty" json:"renderer,omitempty"`
+	MatchMode string `yaml:"match_mode,omitempty" json:"match_mode,omitempty"` // exact | contains
 }
 
 // Load reads a profile YAML file.

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/coherencelab/coherencelab/internal/signal"
 )
 
 func TestResolveFromChannel(t *testing.T) {
@@ -19,6 +21,30 @@ func TestInferFromUAFirefoxMac(t *testing.T) {
 	id, err := ResolveProfileID(&Export{UserAgent: ua})
 	if err != nil || id != "firefox-133-mac" {
 		t.Fatalf("got %q err=%v", id, err)
+	}
+}
+
+func TestToSnapshotJSRuntime(t *testing.T) {
+	wd := true
+	e := &Export{
+		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0.0.0 Safari/537.36",
+		JSRuntime: &signal.JSObservation{
+			Navigator: &signal.NavigatorObservation{
+				Platform:  "Win32",
+				Vendor:    "Google Inc.",
+				Webdriver: &wd,
+			},
+		},
+	}
+	snap := ToSnapshot(e, "chrome-131-win")
+	if snap.JS == nil || snap.JS.Navigator == nil {
+		t.Fatal("expected js_runtime on snapshot")
+	}
+	if snap.JS.Source != "export" {
+		t.Fatalf("source = %q", snap.JS.Source)
+	}
+	if snap.JS.Navigator.Webdriver == nil || !*snap.JS.Navigator.Webdriver {
+		t.Fatal("expected webdriver true")
 	}
 }
 

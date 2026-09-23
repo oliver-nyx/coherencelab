@@ -13,15 +13,16 @@ import (
 
 // Export represents a Playwright browser context export.
 type Export struct {
-	Browser    string            `json:"browser"`
-	Channel    string            `json:"channel"`
-	Profile    string            `json:"profile"`
-	UserAgent  string            `json:"user_agent"`
-	Locale     string            `json:"locale"`
-	Headers    map[string]string `json:"headers"`
-	ExtraHTTP  map[string]string `json:"extra_http_headers"`
-	HeaderOrder []string         `json:"header_order"`
-	Platform   string            `json:"platform"`
+	Browser     string            `json:"browser"`
+	Channel     string            `json:"channel"`
+	Profile     string            `json:"profile"`
+	UserAgent   string            `json:"user_agent"`
+	Locale      string            `json:"locale"`
+	Headers     map[string]string `json:"headers"`
+	ExtraHTTP   map[string]string `json:"extra_http_headers"`
+	HeaderOrder []string          `json:"header_order"`
+	Platform    string            `json:"platform"`
+	JSRuntime   *signal.JSObservation `json:"js_runtime"`
 }
 
 // PresetMap maps Playwright launch hints to CoherenceLab profile IDs.
@@ -88,7 +89,7 @@ func ToSnapshot(e *Export, profileID string) *signal.Snapshot {
 	if e.Locale != "" && headers["accept-language"] == "" {
 		headers["accept-language"] = e.Locale + ",en;q=0.9"
 	}
-	return &signal.Snapshot{
+	snap := &signal.Snapshot{
 		ProfileID:       profileID,
 		UserAgent:       ua,
 		Headers:         headers,
@@ -103,6 +104,14 @@ func ToSnapshot(e *Export, profileID string) *signal.Snapshot {
 			UTLSClientID: guessUTLS(profileID),
 		},
 	}
+	if e.JSRuntime != nil {
+		js := *e.JSRuntime
+		if js.Source == "" {
+			js.Source = "export"
+		}
+		snap.JS = &js
+	}
+	return snap
 }
 
 // ScanExport loads and prepares a Playwright export for scanning.

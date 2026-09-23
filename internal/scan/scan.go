@@ -111,5 +111,21 @@ func applyMutation(s *signal.Snapshot, mutation string) {
 		if s.TLS != nil {
 			s.TLS.UTLSClientID = "firefox_120"
 		}
+	case "js-webdriver":
+		if s.JS == nil {
+			s.JS = &signal.JSObservation{Source: "mutate"}
+		}
+		if s.JS.Navigator == nil {
+			s.JS.Navigator = &signal.NavigatorObservation{}
+		}
+		s.JS.Navigator.Webdriver = signal.BoolPtr(true)
+	case "js-wrong-platform":
+		if s.JS == nil {
+			s.JS = &signal.JSObservation{Source: "mutate"}
+		}
+		if s.JS.Navigator == nil {
+			s.JS.Navigator = &signal.NavigatorObservation{}
+		}
+		s.JS.Navigator.Platform = "Linux x86_64"
 	}
 }

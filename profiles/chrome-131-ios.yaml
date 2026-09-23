@@ -66,3 +66,16 @@ http2:
 accept_language:
   pattern: "en-US,en;q=0.9"
   primary: en-US
+
+js_runtime:
+  navigator:
+    platform: iPhone
+    vendor: Google Inc.
+    language: en-US
+    languages: [en-US, en]
+    webdriver: false
+    max_touch_points: 5
+  webgl:
+    vendor: Apple
+    renderer: Apple
+    match_mode: contains

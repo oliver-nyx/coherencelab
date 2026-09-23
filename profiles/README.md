@@ -39,5 +39,6 @@ Copy an existing profile and adjust:
 3. `client_hints` — must match browser family (Firefox/Safari/CriOS send none)
 4. `tls.utls_client_id` — uTLS preset (`chrome_131`, `chrome_132`, `firefox_133`, `safari_ios_18`, etc.)
 5. `http2` — SETTINGS must match browser family (Chromium vs Firefox vs WebKit)
+6. `js_runtime` (optional) — navigator.platform/vendor/webdriver + WebGL; see [docs/adapters/js-runtime.md](../docs/adapters/js-runtime.md)
 
 Run `coherencelab scan -p <id> --profiles profiles` and confirm Grade **A**.

@@ -1,0 +1,28 @@
+{
+  "browser": "chromium",
+  "channel": "chrome",
+  "platform": "windows",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "locale": "en-US",
+  "extra_http_headers": {
+    "sec-ch-ua": "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "accept-language": "en-US,en;q=0.9"
+  },
+  "header_order": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform", "user-agent", "accept-language"],
+  "js_runtime": {
+    "navigator": {
+      "platform": "Win32",
+      "vendor": "Google Inc.",
+      "language": "en-US",
+      "languages": ["en-US", "en"],
+      "webdriver": true,
+      "max_touch_points": 0
+    },
+    "webgl": {
+      "vendor": "Google Inc. (NVIDIA)",
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 1080 Direct3D11 vs_5_0 ps_5_0)"
+    }
+  }
+}

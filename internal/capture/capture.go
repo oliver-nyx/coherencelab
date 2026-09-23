@@ -97,6 +97,9 @@ func ToProfile(in *Input) (*profile.Profile, error) {
 	if s.TLS != nil && s.TLS.UTLSClientID != "" {
 		p.TLS.UTLSClientID = s.TLS.UTLSClientID
 	}
+	if s.JS != nil {
+		p.JSRuntime = jsToProfile(s.JS)
+	}
 	for k, v := range s.Headers {
 		switch strings.ToLower(k) {
 		case "sec-fetch-site", "sec-fetch-mode", "sec-fetch-user", "sec-fetch-dest":
@@ -167,4 +170,32 @@ func canonicalHeader(k string) string {
 		parts[i] = strings.ToUpper(p[:1]) + p[1:]
 	}
 	return strings.Join(parts, "-")
+}
+
+func jsToProfile(js *signal.JSObservation) *profile.JSRuntimeSpec {
+	if js == nil {
+		return nil
+	}
+	out := &profile.JSRuntimeSpec{}
+	if n := js.Navigator; n != nil {
+		out.Navigator = &profile.NavigatorSpec{
+			Platform:            n.Platform,
+			UserAgent:           n.UserAgent,
+			Vendor:              n.Vendor,
+			Language:            n.Language,
+			Languages:           append([]string(nil), n.Languages...),
+			HardwareConcurrency: n.HardwareConcurrency,
+			DeviceMemory:        n.DeviceMemory,
+			MaxTouchPoints:      n.MaxTouchPoints,
+			Webdriver:           n.Webdriver,
+		}
+	}
+	if w := js.WebGL; w != nil {
+		out.WebGL = &profile.WebGLSpec{
+			Vendor:    w.Vendor,
+			Renderer:  w.Renderer,
+			MatchMode: "contains",
+		}
+	}
+	return out
 }

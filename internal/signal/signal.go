@@ -22,6 +22,7 @@ type Snapshot struct {
 
 	TLS *TLSObservation `json:"tls,omitempty"`
 	H2  *H2Observation  `json:"http2,omitempty"`
+	JS  *JSObservation  `json:"js_runtime,omitempty"`
 }
 
 type TLSObservation struct {

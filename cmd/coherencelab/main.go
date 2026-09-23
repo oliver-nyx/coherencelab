@@ -128,7 +128,7 @@ func scanCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&profileID, "profile", "p", "", "browser profile ID (required)")
 	cmd.Flags().StringVar(&mode, "mode", "local", "scan mode: local, live, mutate")
 	cmd.Flags().StringVar(&probeURL, "probe", "", "probe URL for live mode")
-	cmd.Flags().StringVar(&mutate, "mutate", "", "mutation for mutate mode: wrong-platform, wrong-browser, automation-leak, tls-mismatch")
+	cmd.Flags().StringVar(&mutate, "mutate", "", "mutation for mutate mode: wrong-platform, wrong-browser, automation-leak, tls-mismatch, js-webdriver, js-wrong-platform")
 	cmd.Flags().StringVar(&importPath, "import", "", "JSON session export to scan (httpcloak adapter)")
 	cmd.Flags().StringVar(&adapter, "adapter", "httpcloak", "adapter for --import: httpcloak, playwright, curl")
 	cmd.Flags().BoolVar(&insecure, "insecure", false, "skip TLS verify for live probe (local testing)")
@@ -375,7 +375,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.4.0")
+			fmt.Println("coherencelab v1.5.0")
 		},
 	}
 }

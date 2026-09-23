@@ -13,8 +13,11 @@ Most bot-detection failures are not a single bad fingerprint. They are **cross-l
   ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
   │ TLS / JA3   │ ──► │ CoherenceLab │ ◄── │ Client Hints│
   └─────────────┘     │    Scorer    │     └─────────────┘
+  ┌─────────────┐     │  23 rules    │     ┌─────────────┐
+  │ HTTP/2      │ ──► │              │ ◄── │ Header Order│
+  └─────────────┘     │              │     └─────────────┘
   ┌─────────────┐     │              │     ┌─────────────┐
-  │ HTTP/2      │ ──► │  18 rules    │ ◄── │ Header Order│
+  │ JS runtime  │ ──► │              │ ◄── │ User-Agent  │
   └─────────────┘     └──────────────┘     └─────────────┘
 ```
 
@@ -33,7 +36,7 @@ CoherenceLab fills the gap: **validate that every layer tells the same story**.
 ### Install
 
 ```bash
-git clone https://github.com/coherencelab/coherencelab.git
+git clone https://github.com/oliver-nyx/coherencelab.git
 cd coherencelab
 go build -o bin/coherencelab ./cmd/coherencelab
 ```
@@ -141,6 +144,9 @@ coherencelab profiles validate --profiles profiles
 
 # TLS mismatch: Chrome headers with Firefox TLS client
 ./bin/coherencelab scan -p chrome-131-win --mode mutate --mutate tls-mismatch
+
+# JS automation leak: navigator.webdriver = true
+./bin/coherencelab scan -p chrome-131-win --mode mutate --mutate js-webdriver
 ```
 
 ## Browser Profiles
@@ -232,7 +238,7 @@ accept_language:
 
 ## Scoring
 
-CoherenceLab runs **18 rules** across 7 categories:
+CoherenceLab runs **23 rules** across 8 categories:
 
 | Category | Example checks |
 |----------|----------------|
@@ -241,8 +247,9 @@ CoherenceLab runs **18 rules** across 7 categories:
 | `headers` | Required headers, forbidden automation leaks, header order |
 | `tls` | ALPN negotiation, TLS version |
 | `http2` | SETTINGS frame values |
+| `js_runtime` | navigator.platform/vendor/webdriver, WebGL vendor/renderer |
 | `accept_language` | Primary locale |
-| `cross_layer` | UA ↔ Client Hints ↔ TLS consistency |
+| `cross_layer` | UA ↔ Client Hints ↔ TLS ↔ JS platform consistency |
 
 **Grading:**
 
@@ -284,9 +291,12 @@ coherencelab/
 │   ├── client/             uTLS HTTP client + header builder
 │   ├── h2wire/             HTTP/2 SETTINGS wire capture
 │   ├── probe/              Local TLS probe server
-│   ├── scan/               Scan orchestration (local/live/mutate)
+│   ├── scan/               Scan orchestration (local/live/mutate/import)
 │   ├── tlsfp/              JA3/JA4 + uTLS preset mapping
+│   ├── adapters/           httpcloak / Playwright / curl import
+│   ├── compare/            Diff two session exports
 │   └── report/             Text + JSON report rendering
+├── action.yml              Reusable GitHub Action
 ├── pkg/coherencelab/       Public Go API
 └── profiles/               Browser identity profiles
 ```
@@ -305,7 +315,7 @@ coherencelab/
 
 | Area | Status |
 |------|--------|
-| 18-rule coherence engine | ✓ Complete |
+| 18-rule coherence engine | ✓ Complete → **23 rules** |
 | 18 browser profiles | ✓ Complete |
 | Local + mutate + live scan modes | ✓ Complete |
 | TLS probe server + uTLS client | ✓ Complete |
@@ -319,7 +329,7 @@ coherencelab/
 | Compare command (diff two exports) | ✓ Complete |
 | GitHub Action (reusable / marketplace-ready) | ✓ Complete |
 | Blog: identity coherence write-up | ✓ Complete |
-| JS runtime probes (WebGL, navigator) | Planned |
+| JS runtime probes (WebGL, navigator) | ✓ Complete |
 | Profile auto-capture from real browser | Planned |
 | Web UI report viewer | Planned |
 
@@ -328,7 +338,7 @@ coherencelab/
 - [x] Adapter plugins for httpcloak, curl-impersonate, Playwright
 - [x] GitHub Action for CI
 - [x] Identity coherence blog write-up
-- [ ] JS runtime fingerprint probes (WebGL, canvas, navigator)
+- [x] JS runtime fingerprint probes (WebGL, navigator)
 - [ ] Profile sync from live browser capture
 - [ ] Web UI report viewer
 
@@ -337,6 +347,7 @@ coherencelab/
 - [Getting started](docs/getting-started.md)
 - [GitHub Action](docs/github-action.md)
 - [Blog: Why your HTTP client gets blocked](docs/blog/identity-coherence.md)
+- [JS runtime probes](docs/adapters/js-runtime.md)
 - Adapter docs under [`docs/adapters/`](docs/adapters/)
 
 ## License
