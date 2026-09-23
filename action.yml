@@ -32,7 +32,7 @@ inputs:
   version:
     description: CoherenceLab release tag or branch to install (ignored when local-source is set)
     required: false
-    default: "v1.9.0"
+    default: "v1.9.1"
   local-source:
     description: Path to a local CoherenceLab checkout (relative to workspace). Skips git clone â€” use "." when dogfooding this repo.
     required: false

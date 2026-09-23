@@ -133,9 +133,22 @@ func TestGoldenFingerprintsLocked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantH3 := "1,6,7,g|gf1|request_stream:0:u=0,i"
+	wantH3 := "1,6,7,33,g|gf1|request_stream:0:u=0,i"
 	if got := H3Fingerprint(h3); got != wantH3 {
-		t.Fatalf("h3_chrome golden changed\n got  %s\n want %s", got, wantH3)
+		t.Fatalf("h3_chrome (live) golden changed\n got  %s\n want %s", got, wantH3)
+	}
+
+	_, h3cRaw, err := LoadFixtureBytes("h3_chrome_crafted")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h3c, err := ParseH3(h3cRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantH3c := "1,6,7,g|gf1|request_stream:0:u=0,i"
+	if got := H3Fingerprint(h3c); got != wantH3c {
+		t.Fatalf("h3_chrome_crafted golden changed\n got  %s\n want %s", got, wantH3c)
 	}
 
 	_, h2raw, err := LoadFixtureBytes("h2_chrome")

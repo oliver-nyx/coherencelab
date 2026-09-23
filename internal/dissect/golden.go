@@ -187,7 +187,7 @@ type CrossLayerReport struct {
 	Coherent   bool
 }
 
-// AnalyzeChromeFamilyCrossLayer loads live Chrome H2/QUIC + crafted H3 and
+// AnalyzeChromeFamilyCrossLayer loads live Chrome H2/H3/QUIC fixtures and
 // reports first-flight honesty (live H2 often lacks PRIORITY_UPDATE; live QUIC
 // often lacks grease_quic_bit). For the teaching “EPS everywhere” story use
 // AnalyzeTeachingChromeFamilyCrossLayer (h2_continuation + quic_initial_crafted).
@@ -230,7 +230,7 @@ func AnalyzeTeachingChromeFamilyCrossLayer() (*CrossLayerReport, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, h3raw, err := LoadFixtureBytes("h3_chrome")
+	_, h3raw, err := LoadFixtureBytes("h3_chrome_crafted")
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func CrossLayerFromParsed(h2 *H2Session, h3 *H3Session, tps []TransportParam, mo
 			r.Signals = append(r.Signals,
 				"Live H2 first flight: Akamai field 3=0 — Chrome often defers PRIORITY_UPDATE until a real request (probe SETTINGS+WINDOW_UPDATE only)")
 		}
-		add(h3PU, "H3 PRIORITY_UPDATE present (crafted teaching fixture)",
+		add(h3PU, "H3 PRIORITY_UPDATE present (live Chrome control stream)",
 			"H3 missing PRIORITY_UPDATE — Chrome navigations usually send u=/i")
 		add(h3GF, "H3 GREASE frames present",
 			"H3 lacks GREASE frames — sterile parrot smell")
@@ -305,8 +305,10 @@ func CrossLayerFromParsed(h2 *H2Session, h3 *H3Session, tps []TransportParam, mo
 			r.Conflicts = append(r.Conflicts,
 				"GREASE on only one of H3/QUIC — mixed stack / half-upgraded impersonator")
 		}
-		r.Findings = append(r.Findings,
-			"Cross-layer mixes live H2/QUIC with crafted H3 (live H3 needs a full HTTP/3 server)")
+		if h2PU != h3PU {
+			r.Signals = append(r.Signals,
+				fmt.Sprintf("Live timing: H2 first-flight EPS=%v vs H3 control EPS=%v — not a family break when H2 is preface-only", h2PU, h3PU))
+		}
 	default: // teaching
 		add(h2PU, "H2 PRIORITY_UPDATE present (Akamai field 3 ≠ 0)",
 			"H2 missing PRIORITY_UPDATE while claiming Chromium EPS")
@@ -340,7 +342,7 @@ func CrossLayerFromParsed(h2 *H2Session, h3 *H3Session, tps []TransportParam, mo
 	)
 	if r.Coherent {
 		if mode == CrossLayerLive {
-			r.Findings = append(r.Findings, "Live Chrome first-flight H2/QUIC are coherent with documented EPS/gq timing gaps")
+			r.Findings = append(r.Findings, "Live Chrome H2/H3/QUIC are coherent with documented first-flight EPS/gq timing gaps")
 		} else {
 			r.Findings = append(r.Findings, "Chrome-family fixtures are cross-layer coherent on GREASE + PRIORITY_UPDATE")
 		}

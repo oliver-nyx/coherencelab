@@ -69,7 +69,7 @@ func TestParseH3MinimalNoPriority(t *testing.T) {
 }
 
 func TestH3FixtureCatalog(t *testing.T) {
-	_, raw, err := LoadFixtureBytes("h3_chrome")
+	fx, raw, err := LoadFixtureBytes("h3_chrome")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,14 +77,29 @@ func TestH3FixtureCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if fx.Source != "live-browser" {
+		t.Fatalf("source=%s", fx.Source)
+	}
 	if len(s.PriorityUpdates) == 0 {
-		t.Fatal("expected PRIORITY_UPDATE — regenerate with go run ./tools/gen_corpus.go")
+		t.Fatal("expected PRIORITY_UPDATE in live h3_chrome")
 	}
 	if !contains(s.PriorityFingerprint(), "u=0,i") {
 		t.Fatalf("fp=%s", s.PriorityFingerprint())
 	}
-	if s.HeaderBlock == nil || s.HeaderBlock.PseudoOrder != PseudoChrome {
-		t.Fatalf("expected QPACK chrome pseudo, got %+v", s.HeaderBlock)
+	if countH3GREASEFrames(s) < 1 {
+		t.Fatal("expected GREASE frame in live Chrome H3")
+	}
+
+	_, rawCraft, err := LoadFixtureBytes("h3_chrome_crafted")
+	if err != nil {
+		t.Fatal(err)
+	}
+	craft, err := ParseH3(rawCraft)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if craft.HeaderBlock == nil || craft.HeaderBlock.PseudoOrder != PseudoChrome {
+		t.Fatalf("expected QPACK chrome pseudo on crafted fixture, got %+v", craft.HeaderBlock)
 	}
 
 	_, raw2, err := LoadFixtureBytes("h3_minimal")

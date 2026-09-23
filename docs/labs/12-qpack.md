@@ -27,7 +27,7 @@ Lab 03 taught HPACK. HTTP/3 HEADERS use **QPACK** (RFC 9204) — same idea
 ./bin/coherencelab lab qpack --fixture qpack_safari
 
 # H3 control stream now decodes HEADERS:
-./bin/coherencelab lab h3 --fixture h3_chrome
+./bin/coherencelab lab h3 --fixture h3_chrome_crafted
 ```
 
 Confirm:

@@ -52,11 +52,11 @@ Live first-flight contrast:
 # Akamai: …|15663105|0|  — no PRIORITY_UPDATE on probe SETTINGS flight
 ```
 
-Compare Firefox teaching fixture (no EPS frames):
+Compare live Firefox (no EPS on first flight; different SETTINGS/window):
 
 ```bash
 ./bin/coherencelab lab h2 --fixture h2_firefox
-# Priority fingerprint field: 0
+# Akamai: 1:65536;2:0;4:131072;5:16384|12517377|0|
 ```
 
 ## What high-level RE looks for

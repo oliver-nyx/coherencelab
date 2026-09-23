@@ -14,7 +14,7 @@ impersonators:
 | Layer | Golden string | Live Chrome (bundled) | Teaching / crafted |
 |-------|---------------|------------------------|--------------------|
 | QUIC TP | `ids\|gN\|gq0/1` | `3128,8,5,4,3,6,9,7,1,20,11,f\|g1\|gq0` | `1,3,4,5,6,7,8,9,a,b,e,f,2ab2\|g1\|gq1` |
-| HTTP/3 | `settings\|gfN\|priority` | *(crafted — live H3 needs full H3 server)* | `1,6,7,g\|gf1\|request_stream:0:u=0,i` |
+| HTTP/3 | `settings\|gfN\|priority` | `1,6,7,33,g\|gf1\|request_stream:0:u=0,i` | `1,6,7,g\|gf1\|…` (`h3_chrome_crafted`) |
 | HTTP/2 | Akamai | `…\|15663105\|0\|` first flight | `…\|u=0,i\|m,a,s,p` (`h2_continuation`) |
 
 GREASE ids are collapsed (`g` / `gN`) so the golden stays stable across

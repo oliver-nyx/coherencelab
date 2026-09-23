@@ -91,6 +91,10 @@ func (s *Server) Start() error {
 	// Capture raw ClientHello on the TCP conn before TLS consumes it.
 	rawLn := &helloCaptureListener{Listener: ln, srv: s}
 
+	if s.CaptureDir != "" {
+		SetCertPersistDir(s.CaptureDir)
+	}
+
 	// Use stdlib crypto/tls for the server stack so modern Chrome/Firefox can
 	// complete the handshake. uTLS remains a client/parrot concern — here we
 	// only need a compatible server that lets us observe the ClientHello.

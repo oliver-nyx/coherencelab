@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"net"
 	"os"
@@ -19,12 +20,13 @@ import (
 )
 
 var (
-	certOnce     sync.Once
-	cachedUTLS   *utls.Certificate
-	cachedX509   *tls.Certificate
+	certOnce      sync.Once
+	cachedUTLS    *utls.Certificate
+	cachedX509    *tls.Certificate
 	cachedCertPEM []byte
 	cachedKeyPEM  []byte
-	certErr      error
+	certErr       error
+	certPersistDir string
 )
 
 func generateSelfSigned() (*utls.Certificate, error) {
@@ -37,12 +39,23 @@ func generateSelfSignedX509() (*tls.Certificate, error) {
 	return cachedX509, certErr
 }
 
+// SetCertPersistDir makes the probe reuse a durable PEM pair under dir so
+// browsers that trust the Root CA keep working across serve restarts (needed
+// for Chrome QUIC, which often ignores --ignore-certificate-errors).
+func SetCertPersistDir(dir string) {
+	certPersistDir = dir
+}
+
 // WriteCertPEMs writes the probe certificate and key for browser trust import.
 func WriteCertPEMs(dir string) (certPath, keyPath string, err error) {
 	certOnce.Do(buildCerts)
 	if certErr != nil {
 		return "", "", certErr
 	}
+	return writeCertPEMsTo(dir)
+}
+
+func writeCertPEMsTo(dir string) (certPath, keyPath string, err error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", "", err
 	}
@@ -58,6 +71,11 @@ func WriteCertPEMs(dir string) (certPath, keyPath string, err error) {
 }
 
 func buildCerts() {
+	if certPersistDir != "" {
+		if err := loadCertPEMs(certPersistDir); err == nil {
+			return
+		}
+	}
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		certErr = err
@@ -73,6 +91,7 @@ func buildCerts() {
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
+		IsCA:                  true,
 		DNSNames:              []string{"localhost", "example.com"},
 		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
 	}
@@ -88,18 +107,41 @@ func buildCerts() {
 		return
 	}
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
-	ucert, err := utls.X509KeyPair(certPEM, keyPEM)
-	if err != nil {
+	if err := cacheFromPEM(certPEM, keyPEM); err != nil {
 		certErr = err
 		return
 	}
+	if certPersistDir != "" {
+		if _, _, err := writeCertPEMsTo(certPersistDir); err != nil {
+			certErr = fmt.Errorf("persist probe cert: %w", err)
+		}
+	}
+}
+
+func loadCertPEMs(dir string) error {
+	certPEM, err := os.ReadFile(filepath.Join(dir, "probe-cert.pem"))
+	if err != nil {
+		return err
+	}
+	keyPEM, err := os.ReadFile(filepath.Join(dir, "probe-key.pem"))
+	if err != nil {
+		return err
+	}
+	return cacheFromPEM(certPEM, keyPEM)
+}
+
+func cacheFromPEM(certPEM, keyPEM []byte) error {
+	ucert, err := utls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return err
+	}
 	xcert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
-		certErr = err
-		return
+		return err
 	}
 	cachedUTLS = &ucert
 	cachedX509 = &xcert
 	cachedCertPEM = certPEM
 	cachedKeyPEM = keyPEM
+	return nil
 }

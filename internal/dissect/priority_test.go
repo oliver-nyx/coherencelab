@@ -79,7 +79,7 @@ func TestH2ContinuationFixtureHasPriorityUpdate(t *testing.T) {
 }
 
 func TestFirefoxFixturePriorityIsZero(t *testing.T) {
-	_, raw, err := LoadFixtureBytes("h2_firefox")
+	fx, raw, err := LoadFixtureBytes("h2_firefox")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,5 +89,28 @@ func TestFirefoxFixturePriorityIsZero(t *testing.T) {
 	}
 	if s.PriorityFingerprint() != "0" {
 		t.Fatalf("got %s", s.PriorityFingerprint())
+	}
+	if fx.Source == "live-browser" {
+		want := "1:65536;2:0;4:131072;5:16384|12517377|0|"
+		if got := s.AkamaiH2Fingerprint(); got != want {
+			t.Fatalf("live firefox H2 akamai changed\n got  %s\n want %s", got, want)
+		}
+	}
+}
+
+func TestLoadFixtureH2FirefoxLive(t *testing.T) {
+	fx, raw, err := LoadFixtureBytes("h2_firefox")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fx.Source != "live-browser" {
+		t.Fatalf("source=%s", fx.Source)
+	}
+	s, err := ParseH2(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.HasPreface || len(s.Frames) < 2 {
+		t.Fatalf("preface=%v frames=%d", s.HasPreface, len(s.Frames))
 	}
 }

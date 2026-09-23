@@ -34,6 +34,12 @@ bytes or crafted fixtures so you can focus on PRIORITY_UPDATE / GREASE.
 ./bin/coherencelab lab h3 --fixture h3_chrome
 ```
 
+Live Chrome control stream (SETTINGS + GREASE + PRIORITY_UPDATE). For QPACK HEADERS on the same fixture surface, use the teaching bin:
+
+```bash
+./bin/coherencelab lab h3 --fixture h3_chrome_crafted
+```
+
 Confirm:
 
 1. SETTINGS use QPACK ids (`0x1`, `0x6`, `0x7`) — not H2 `ENABLE_PUSH` / window
