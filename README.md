@@ -82,6 +82,13 @@ Live mode captures the actual HTTP/2 SETTINGS frame sent on the wire and compare
 
 See [docs/browser-capture.md](docs/browser-capture.md).
 
+### Web UI report viewer
+
+```bash
+./bin/coherencelab ui --profiles profiles --addr 127.0.0.1:8080
+# Open http://127.0.0.1:8080 — run scans or load a JSON report
+```
+
 ### CI integration
 
 ```bash
@@ -341,7 +348,7 @@ coherencelab/
 | Blog: identity coherence write-up | ✓ Complete |
 | JS runtime probes (WebGL, navigator) | ✓ Complete |
 | Profile auto-capture from real browser | ✓ Complete |
-| Web UI report viewer | Planned |
+| Web UI report viewer | ✓ Complete |
 
 ## Roadmap
 
@@ -350,7 +357,7 @@ coherencelab/
 - [x] Identity coherence blog write-up
 - [x] JS runtime fingerprint probes (WebGL, navigator)
 - [x] Profile sync from live browser capture
-- [ ] Web UI report viewer
+- [x] Web UI report viewer
 
 ## Docs
 
@@ -359,6 +366,7 @@ coherencelab/
 - [Blog: Why your HTTP client gets blocked](docs/blog/identity-coherence.md)
 - [JS runtime probes](docs/adapters/js-runtime.md)
 - [Browser profile capture](docs/browser-capture.md)
+- [Web UI](docs/web-ui.md)
 - Adapter docs under [`docs/adapters/`](docs/adapters/)
 
 ## License

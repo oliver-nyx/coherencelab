@@ -16,6 +16,7 @@ import (
 	"github.com/coherencelab/coherencelab/internal/probe"
 	"github.com/coherencelab/coherencelab/internal/report"
 	"github.com/coherencelab/coherencelab/internal/scan"
+	"github.com/coherencelab/coherencelab/internal/ui"
 )
 
 var (
@@ -45,6 +46,7 @@ bot detection failures in production HTTP clients and automation stacks.`,
 	cmd.AddCommand(captureCmd())
 	cmd.AddCommand(profilesCmd())
 	cmd.AddCommand(serveCmd())
+	cmd.AddCommand(uiCmd())
 	cmd.AddCommand(demoCmd())
 	cmd.AddCommand(versionCmd())
 	return cmd
@@ -360,6 +362,30 @@ func serveCmd() *cobra.Command {
 	return cmd
 }
 
+func uiCmd() *cobra.Command {
+	var addr string
+	cmd := &cobra.Command{
+		Use:   "ui",
+		Short: "Open the local Web UI report viewer",
+		Long:  `Starts an HTTP UI to run coherence scans and view reports in the browser.`,
+		Example: `  coherencelab ui --profiles profiles --addr 127.0.0.1:8080
+  # then open http://127.0.0.1:8080`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			srv := ui.New(addr, profilesDir)
+			if err := srv.Start(); err != nil {
+				return err
+			}
+			fmt.Printf("CoherenceLab UI listening on http://%s\n", addr)
+			fmt.Printf("  Profiles: %s\n", profilesDir)
+			fmt.Printf("Open http://%s in your browser.\n", addr)
+			fmt.Println("Press Ctrl+C to stop.")
+			select {}
+		},
+	}
+	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:8080", "listen address (HTTP)")
+	return cmd
+}
+
 func demoCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "demo",
@@ -393,7 +419,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.6.0")
+			fmt.Println("coherencelab v1.7.0")
 		},
 	}
 }

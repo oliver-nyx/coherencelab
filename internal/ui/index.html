@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CoherenceLab</title>
+  <style>
+    :root {
+      --bg: #0e1218;
+      --panel: #171e2a;
+      --panel2: #1e2736;
+      --text: #e8eef7;
+      --muted: #8fa0b8;
+      --line: #2a3548;
+      --accent: #4aa3ff;
+      --a: #3dd68c; --b: #7bd88f; --c: #e6c07b; --d: #e5a35c; --f: #f07178;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(900px 500px at 10% -20%, #1c2d4a 0%, transparent 60%),
+        radial-gradient(700px 400px at 90% 0%, #1a2438 0%, transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--line);
+      display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;
+    }
+    header h1 { margin: 0; font-size: 1.25rem; letter-spacing: -0.02em; }
+    header .tag { color: var(--muted); font-size: 0.9rem; }
+    .layout {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 1rem;
+      padding: 1rem 1.25rem 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1rem 1.1rem;
+    }
+    label { display: block; color: var(--muted); font-size: 0.8rem; margin: 0.55rem 0 0.3rem; }
+    select, input, button, textarea {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #101621;
+      color: var(--text);
+      padding: 0.55rem 0.65rem;
+      font: inherit;
+    }
+    button {
+      margin-top: 0.9rem;
+      background: var(--accent);
+      color: #041018;
+      border: 0;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    button.secondary { background: var(--panel2); color: var(--text); }
+    button:disabled { opacity: 0.55; cursor: wait; }
+    .grade {
+      font-size: 3rem; font-weight: 750; line-height: 1;
+      letter-spacing: -0.04em;
+    }
+    .grade.A { color: var(--a); } .grade.B { color: var(--b); }
+    .grade.C { color: var(--c); } .grade.D { color: var(--d); } .grade.F { color: var(--f); }
+    .meta { color: var(--muted); margin-top: 0.35rem; }
+    .bars { margin-top: 1rem; display: grid; gap: 0.45rem; }
+    .bar-row { display: grid; grid-template-columns: 120px 1fr 48px; gap: 0.5rem; align-items: center; font-size: 0.85rem; }
+    .track { height: 8px; background: #0c1118; border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
+    .fill { height: 100%; background: linear-gradient(90deg, #2f6fed, #4aa3ff); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { text-align: left; padding: 0.55rem 0.4rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; font-size: 0.78rem; }
+    .pass { color: var(--a); } .fail { color: var(--f); } .skip { color: var(--muted); }
+    .sev { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    .error { color: var(--f); margin-top: 0.75rem; }
+    details { margin-top: 0.75rem; }
+    summary { cursor: pointer; color: var(--muted); }
+    pre {
+      background: #0c1118; border: 1px solid var(--line); border-radius: 8px;
+      padding: 0.75rem; overflow: auto; font-size: 0.75rem; max-height: 280px;
+    }
+    .tabs { display: flex; gap: 0.4rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .tabs button { width: auto; margin: 0; padding: 0.4rem 0.7rem; font-size: 0.85rem; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CoherenceLab</h1>
+    <span class="tag">Report viewer</span>
+  </header>
+  <div class="layout">
+    <aside class="card">
+      <div class="tabs">
+        <button type="button" id="tabScan" class="secondary">Run scan</button>
+        <button type="button" id="tabLoad" class="secondary">Load JSON</button>
+      </div>
+
+      <div id="panelScan">
+        <label for="profile">Profile</label>
+        <select id="profile"></select>
+        <label for="mode">Mode</label>
+        <select id="mode">
+          <option value="local">local</option>
+          <option value="mutate">mutate</option>
+        </select>
+        <label for="mutate">Mutation</label>
+        <select id="mutate">
+          <option value="">(none)</option>
+          <option value="wrong-platform">wrong-platform</option>
+          <option value="wrong-browser">wrong-browser</option>
+          <option value="automation-leak">automation-leak</option>
+          <option value="tls-mismatch">tls-mismatch</option>
+          <option value="js-webdriver">js-webdriver</option>
+          <option value="js-wrong-platform">js-wrong-platform</option>
+        </select>
+        <button id="runBtn" type="button">Run coherence scan</button>
+      </div>
+
+      <div id="panelLoad" class="hidden">
+        <label for="file">Report JSON file</label>
+        <input id="file" type="file" accept="application/json,.json" />
+        <p class="meta">Paste a report from <code>coherencelab scan -o report.json --format json</code></p>
+      </div>
+      <div id="err" class="error"></div>
+    </aside>
+
+    <section class="card" id="report">
+      <p class="meta">Select a profile and run a scan to see the report.</p>
+    </section>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const err = $("err");
+    const report = $("report");
+
+    function showErr(msg) {
+      err.textContent = msg || "";
+    }
+
+    async function loadProfiles() {
+      const res = await fetch("/api/profiles");
+      if (!res.ok) throw new Error(await res.text());
+      const list = await res.json();
+      const sel = $("profile");
+      sel.innerHTML = "";
+      for (const p of list) {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = `${p.id} — ${p.name}`;
+        sel.appendChild(opt);
+      }
+    }
+
+    function pct(got, max) {
+      if (!max) return 0;
+      return Math.round((got / max) * 100);
+    }
+
+    function render(rep) {
+      const r = rep.result || {};
+      const grade = r.grade || "?";
+      const cats = Object.keys(r.category_max || {}).sort();
+      const bars = cats.map(c => {
+        const max = r.category_max[c] || 0;
+        const got = (r.category_scores && r.category_scores[c]) || 0;
+        const p = pct(got, max);
+        return `<div class="bar-row"><div>${c}</div><div class="track"><div class="fill" style="width:${p}%"></div></div><div>${p}%</div></div>`;
+      }).join("");
+
+      const findings = (r.findings || []).map(f => {
+        const cls = f.weight === 0 ? "skip" : (f.passed ? "pass" : "fail");
+        const mark = f.weight === 0 ? "SKIP" : (f.passed ? "PASS" : "FAIL");
+        return `<tr>
+          <td class="${cls}">${mark}</td>
+          <td><div>${f.title || f.id}</div><div class="sev">${f.severity || ""} · ${f.category || ""}</div></td>
+          <td>${escapeHtml(f.expected || "")}</td>
+          <td>${escapeHtml(f.actual || "")}</td>
+        </tr>`;
+      }).join("");
+
+      report.innerHTML = `
+        <div style="display:flex;gap:1.25rem;align-items:flex-start;flex-wrap:wrap">
+          <div>
+            <div class="grade ${grade}">${grade}</div>
+            <div class="meta">${(r.percentage || 0).toFixed(1)}% · ${r.score || 0}/${r.max_score || 0}</div>
+          </div>
+          <div class="meta">
+            <div><strong>${escapeHtml(rep.profile_name || rep.profile_id || "")}</strong></div>
+            <div>Mode: ${escapeHtml(rep.mode || "")}</div>
+            <div>${r.passed || 0} passed · ${r.failed || 0} failed · ${r.skipped || 0} skipped</div>
+            ${r.critical_fails ? `<div style="color:var(--f)">${r.critical_fails} critical failure(s)</div>` : ""}
+          </div>
+        </div>
+        <div class="bars">${bars}</div>
+        <h3 style="margin:1.25rem 0 0.5rem;font-size:1rem">Checks</h3>
+        <table>
+          <thead><tr><th>Status</th><th>Rule</th><th>Expected</th><th>Actual</th></tr></thead>
+          <tbody>${findings}</tbody>
+        </table>
+        <details>
+          <summary>Raw JSON</summary>
+          <pre>${escapeHtml(JSON.stringify(rep, null, 2))}</pre>
+        </details>
+      `;
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    $("tabScan").onclick = () => {
+      $("panelScan").classList.remove("hidden");
+      $("panelLoad").classList.add("hidden");
+    };
+    $("tabLoad").onclick = () => {
+      $("panelLoad").classList.remove("hidden");
+      $("panelScan").classList.add("hidden");
+    };
+
+    $("runBtn").onclick = async () => {
+      showErr("");
+      $("runBtn").disabled = true;
+      try {
+        const body = {
+          profile: $("profile").value,
+          mode: $("mode").value,
+          mutate: $("mutate").value
+        };
+        const res = await fetch("/api/scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const text = await res.text();
+        if (!res.ok) throw new Error(text);
+        render(JSON.parse(text));
+      } catch (e) {
+        showErr(String(e.message || e));
+      } finally {
+        $("runBtn").disabled = false;
+      }
+    };
+
+    $("file").onchange = async (ev) => {
+      showErr("");
+      const file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        render(JSON.parse(text));
+      } catch (e) {
+        showErr("Invalid report JSON: " + (e.message || e));
+      }
+    };
+
+    loadProfiles().catch(e => showErr(String(e.message || e)));
+  </script>
+</body>
+</html>
