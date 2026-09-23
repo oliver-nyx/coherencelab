@@ -27,8 +27,6 @@ Compare:
 - Calling out frozen Chrome-class orders as an impersonation smell
 - Honesty when uTLS’s parrot itself is low-entropy (the lab teaches that too)
 
-## Questions
+## Next
 
-1. If JA3 is identical but order histogram has 5 buckets, what did JA3 lose?
-2. Why keep a GREASE-stripped skeleton as a secondary anchor?
-3. How would you diff a real Chrome pcap corpus against this uTLS histogram?
+[Lab 05 — CONTINUATION merge](05-continuation.md)

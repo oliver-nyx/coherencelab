@@ -37,6 +37,8 @@ Read the code while you run it:
 - [`docs/labs/02-http2-wire.md`](docs/labs/02-http2-wire.md)
 - [`docs/labs/03-hpack-pseudo.md`](docs/labs/03-hpack-pseudo.md)
 - [`docs/labs/04-extension-permutation.md`](docs/labs/04-extension-permutation.md)
+- [`docs/labs/05-continuation.md`](docs/labs/05-continuation.md)
+- [`docs/labs/06-corpus-diff.md`](docs/labs/06-corpus-diff.md)
 
 ## Coherence scoring (supporting tool)
 
@@ -333,7 +335,9 @@ coherencelab/
 | HTTP/2 frame dissector (SETTINGS / WINDOW_UPDATE / PRIORITY_UPDATE) | ✓ Complete |
 | HPACK + pseudo-header order (Akamai field 4) | ✓ Complete |
 | ClientHello extension permutation entropy lab | ✓ Complete |
-| RE labs (`lab clienthello|h2|headers|permute`) | ✓ Complete |
+| CONTINUATION merge before HPACK | ✓ Complete |
+| Capture vs uTLS corpus diff | ✓ Complete |
+| RE labs (`lab clienthello|h2|headers|permute|corpus`) | ✓ Complete |
 | 23-rule coherence engine | ✓ Complete |
 | 18 browser profiles | ✓ Complete |
 | Local + mutate + live scan modes | ✓ Complete |
@@ -363,8 +367,10 @@ coherencelab/
 - [x] First-principles TLS ClientHello + HTTP/2 dissectors (`lab`)
 - [x] HPACK / pseudo-header order lab
 - [x] Extension-permutation entropy lab
-- [ ] CONTINUATION merge + full HPACK dynamic-table stress corpus
-- [ ] Real-browser pcap corpus diffs vs uTLS parrot
+- [x] CONTINUATION merge + HPACK across fragments
+- [x] Real-browser capture vs uTLS corpus diff
+- [ ] PRIORITY_UPDATE / RFC 9218 corpus across browser versions
+- [ ] Packaged pcap fixtures in `testdata/corpus/`
 
 ## Docs
 
@@ -373,6 +379,8 @@ coherencelab/
 - [Lab 02: HTTP/2 wire](docs/labs/02-http2-wire.md)
 - [Lab 03: HPACK / pseudo-header order](docs/labs/03-hpack-pseudo.md)
 - [Lab 04: Extension permutation entropy](docs/labs/04-extension-permutation.md)
+- [Lab 05: CONTINUATION merge](docs/labs/05-continuation.md)
+- [Lab 06: Capture vs uTLS corpus diff](docs/labs/06-corpus-diff.md)
 - [GitHub Action](docs/github-action.md)
 - [Blog: Why your HTTP client gets blocked](docs/blog/identity-coherence.md)
 - [JS runtime probes](docs/adapters/js-runtime.md)

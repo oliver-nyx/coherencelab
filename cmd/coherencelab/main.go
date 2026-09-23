@@ -559,10 +559,51 @@ Read the code — the annotations are the curriculum.`,
 	permCmd.Flags().IntVar(&permSamples, "samples", 8, "how many ClientHellos to synthesize")
 	permCmd.Flags().StringVar(&sni, "sni", "example.com", "SNI used when synthesizing")
 
+	var (
+		corpusBin  string
+		corpusHex  string
+		corpusUTLS string
+	)
+	corpusCmd := &cobra.Command{
+		Use:   "corpus",
+		Short: "Diff a captured ClientHello against a uTLS parrot (ground truth vs claim)",
+		Example: `  coherencelab lab corpus --bin chrome-capture.bin --utls chrome_131
+  coherencelab lab corpus --bin chrome-capture.bin --utls firefox_133`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if corpusUTLS == "" {
+				return fmt.Errorf("--utls required (parrot id to compare against the capture)")
+			}
+			var raw []byte
+			var err error
+			switch {
+			case corpusBin != "":
+				raw, err = os.ReadFile(corpusBin)
+			case corpusHex != "":
+				raw, err = decodeHex(corpusHex)
+			default:
+				return fmt.Errorf("provide --bin or --hex capture")
+			}
+			if err != nil {
+				return err
+			}
+			diff, _, _, err := dissect.DiffCapturedVsUTLS(raw, corpusUTLS, sni)
+			if err != nil {
+				return err
+			}
+			dissect.FormatHelloDiff(os.Stdout, diff)
+			return nil
+		},
+	}
+	corpusCmd.Flags().StringVar(&corpusBin, "bin", "", "captured ClientHello bytes")
+	corpusCmd.Flags().StringVar(&corpusHex, "hex", "", "captured ClientHello as hex")
+	corpusCmd.Flags().StringVar(&corpusUTLS, "utls", "", "uTLS parrot id (e.g. chrome_131)")
+	corpusCmd.Flags().StringVar(&sni, "sni", "example.com", "SNI for parrot synthesis")
+
 	cmd.AddCommand(tlsCmd)
 	cmd.AddCommand(h2Cmd)
 	cmd.AddCommand(headersCmd)
 	cmd.AddCommand(permCmd)
+	cmd.AddCommand(corpusCmd)
 	return cmd
 }
 
@@ -655,7 +696,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.8.1")
+			fmt.Println("coherencelab v1.8.2")
 		},
 	}
 }

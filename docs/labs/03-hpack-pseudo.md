@@ -49,4 +49,4 @@ You should see the decoded pseudo order and the Akamai-style fingerprint string.
 
 ## Next
 
-[Lab 04 — Extension permutation entropy](04-extension-permutation.md)
+[Lab 05 — CONTINUATION merge](05-continuation.md)

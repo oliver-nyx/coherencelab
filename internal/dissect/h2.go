@@ -103,6 +103,7 @@ func ParseH2(b []byte) (*H2Session, error) {
 		annotateFrame(s, &fr)
 		s.Frames = append(s.Frames, fr)
 	}
+	assembleHeaderBlocks(s)
 	s.Findings = h2Findings(s)
 	if s.HeaderBlock != nil {
 		s.Findings = append(s.Findings, s.HeaderBlock.Findings...)
@@ -151,24 +152,15 @@ func annotateFrame(s *H2Session, fr *Frame) {
 		fr.Note = "RFC 9218 PRIORITY_UPDATE — Chromium ships this. Absence on a Chrome claim is a coherence failure at the H2 layer."
 		fr.Detail = string(fr.Payload)
 	case FrameHeaders:
-		block, note := extractHeaderBlock(fr)
-		fr.Note = note
-		if block != nil {
-			hb, err := DecodeHeaderBlock(block)
-			if err != nil {
-				fr.Detail = fmt.Sprintf("HPACK error: %v", err)
-				fr.Note = "HEADERS payload present but HPACK decode failed — truncated CONTINUATION or corrupt block."
-			} else {
-				s.HeaderBlocks = append(s.HeaderBlocks, hb)
-				if s.HeaderBlock == nil {
-					s.HeaderBlock = hb
-				}
-				fr.Detail = fmt.Sprintf("pseudo=%s family≈%s fields=%d", hb.PseudoOrder, hb.FamilyGuess, len(hb.Fields))
-				fr.Note = "HPACK preserves encoder field order. Pseudo-header order is a stable browser-family fingerprint (Chrome m,a,s,p / Firefox m,p,a,s / Safari m,s,p,a)."
-			}
+		fr.Detail = fmt.Sprintf("flags=0x%02x payload=%d bytes", fr.Flags, len(fr.Payload))
+		if fr.Flags&0x4 == 0 {
+			fr.Note = "END_HEADERS unset — CONTINUATION frames must follow immediately on this stream (RFC 9113)"
 		} else {
-			fr.Detail = fmt.Sprintf("flags=0x%02x payload=%d bytes", fr.Flags, len(fr.Payload))
+			fr.Note = "Single-frame header block (END_HEADERS set)"
 		}
+	case FrameContinuation:
+		fr.Detail = fmt.Sprintf("flags=0x%02x payload=%d bytes", fr.Flags, len(fr.Payload))
+		fr.Note = "CONTINUATION carries more HPACK bytes; must be contiguous after HEADERS. Detectors that only parse the first HEADERS frame miss fields / mis-order pseudos."
 	case FramePing:
 		fr.Note = "PING early in the session can be a middlebox/keepalive tell; browsers rarely PING first."
 	case FrameGoAway:
@@ -232,6 +224,12 @@ func h2Findings(s *H2Session) []string {
 	for _, fr := range s.Frames {
 		if fr.Type == FramePriorityUpdate {
 			out = append(out, "PRIORITY_UPDATE observed — RFC 9218 path (Chromium)")
+			break
+		}
+	}
+	for _, fr := range s.Frames {
+		if fr.Type == FrameContinuation {
+			out = append(out, "CONTINUATION present — header block was fragmented; naive parsers that ignore CONTINUATION will mis-decode HPACK")
 			break
 		}
 	}
@@ -305,8 +303,9 @@ func settingNote(id uint16, val uint32) string {
 	}
 }
 
-// extractHeaderBlock strips PADDED/PRIORITY framing from a HEADERS payload.
-func extractHeaderBlock(fr *Frame) (block []byte, note string) {
+// extractHeaderFragment strips PADDED/PRIORITY framing from a HEADERS payload.
+// Does not require END_HEADERS — CONTINUATION may follow.
+func extractHeaderFragment(fr *Frame) (block []byte, note string) {
 	p := fr.Payload
 	o := 0
 	if fr.Flags&0x8 != 0 { // PADDED
@@ -327,9 +326,61 @@ func extractHeaderBlock(fr *Frame) (block []byte, note string) {
 		o += 5
 		note = "RFC 7540 PRIORITY dependency present on HEADERS (legacy path)"
 	}
-	if fr.Flags&0x4 == 0 { // END_HEADERS
-		note = "END_HEADERS unset — need CONTINUATION (lab decodes single-frame blocks only)"
-		return nil, note
-	}
 	return p[o:], note
 }
+
+// assembleHeaderBlocks merges HEADERS + contiguous CONTINUATION frames and
+// runs HPACK. This is the RFC 9113 rule many fingerprint tools get wrong.
+func assembleHeaderBlocks(s *H2Session) {
+	for i := 0; i < len(s.Frames); i++ {
+		fr := &s.Frames[i]
+		if fr.Type != FrameHeaders {
+			continue
+		}
+		frag, note := extractHeaderFragment(fr)
+		if frag == nil && note != "" {
+			fr.Note = note
+			continue
+		}
+		contCount := 0
+		end := fr.Flags&0x4 != 0
+		j := i + 1
+		for !end && j < len(s.Frames) {
+			cf := &s.Frames[j]
+			if cf.Type != FrameContinuation || cf.Stream != fr.Stream {
+				fr.Detail = "header block incomplete — next frame is not CONTINUATION on same stream (protocol error / capture gap)"
+				fr.Note = "RFC 9113: a HEADERS without END_HEADERS must be followed by CONTINUATION on the same stream with no frames in between"
+				break
+			}
+			frag = append(frag, cf.Payload...)
+			contCount++
+			end = cf.Flags&0x4 != 0
+			cf.Detail = fmt.Sprintf("merged into HEADERS @ frame %d (%d bytes)", i+1, len(cf.Payload))
+			cf.Note = "CONTINUATION fragment — HPACK state spans frames; order of fields is still encoder order across the merge"
+			j++
+		}
+		if !end {
+			continue
+		}
+		hb, err := DecodeHeaderBlock(frag)
+		if err != nil {
+			fr.Detail = fmt.Sprintf("HPACK error after merging %d CONTINUATION: %v", contCount, err)
+			fr.Note = "Merged header block failed HPACK decode"
+			continue
+		}
+		s.HeaderBlocks = append(s.HeaderBlocks, hb)
+		if s.HeaderBlock == nil {
+			s.HeaderBlock = hb
+		}
+		fr.Detail = fmt.Sprintf("pseudo=%s family≈%s fields=%d continuations=%d", hb.PseudoOrder, hb.FamilyGuess, len(hb.Fields), contCount)
+		fr.Note = "HPACK preserves encoder field order across CONTINUATION merges. Pseudo-header order is a stable browser-family fingerprint."
+		if note != "" {
+			fr.Note = note + " — " + fr.Note
+		}
+		if contCount > 0 {
+			s.Findings = append(s.Findings, fmt.Sprintf("Merged HEADERS + %d CONTINUATION frame(s) before HPACK decode", contCount))
+		}
+		i = j - 1
+	}
+}
+

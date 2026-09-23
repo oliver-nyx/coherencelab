@@ -1,0 +1,37 @@
+# Lab 05 — CONTINUATION merge
+
+**Code:** [`internal/dissect/h2.go`](../../internal/dissect/h2.go) (`assembleHeaderBlocks`)
+
+RFC 9113: if `HEADERS` does not have `END_HEADERS`, the next frames **must** be
+`CONTINUATION` on the same stream, with no other frames interleaved. HPACK
+state spans the merge. Tools that decode only the first HEADERS payload will:
+
+- miss fields that landed in CONTINUATION
+- invent truncated / invalid HPACK errors
+- sometimes scramble perceived pseudo-header order
+
+## Exercise
+
+Capture a large request (many cookies / Client Hints) or craft a split block:
+
+```bash
+# After capturing session.h2 that includes CONTINUATION:
+./bin/coherencelab lab h2 --bin session.h2
+```
+
+Look for:
+
+- `continuations=N` on the HEADERS detail line
+- finding: `Merged HEADERS + N CONTINUATION`
+- correct `pseudo=m,a,s,p` (or Firefox/Safari) **after** the merge
+
+## What high-level RE looks for
+
+- Explicit RFC citation in notes
+- Contiguity check (wrong next frame → protocol error note)
+- Decode **after** merge, not before
+- Teaching that fingerprinting stacks fail here in the wild
+
+## Next
+
+[Lab 06 — Capture vs uTLS corpus diff](06-corpus-diff.md)
