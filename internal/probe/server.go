@@ -14,6 +14,7 @@ import (
 
 	utls "github.com/refraction-networking/utls"
 
+	"github.com/coherencelab/coherencelab/internal/capture"
 	"github.com/coherencelab/coherencelab/internal/h2wire"
 	"github.com/coherencelab/coherencelab/internal/signal"
 	"github.com/coherencelab/coherencelab/internal/tlsfp"
@@ -32,11 +33,13 @@ type Observation struct {
 
 // Server is a TLS probe server that captures client identity signals.
 type Server struct {
-	Addr   string
-	mu     sync.RWMutex
-	logs   []Observation
-	h2ByAddr map[string]*signal.H2Observation
-	server *http.Server
+	Addr       string
+	CaptureDir string // if set, /api/capture writes JSON + profile YAML here
+	mu         sync.RWMutex
+	logs       []Observation
+	h2ByAddr   map[string]*signal.H2Observation
+	lastCapture *capture.Input
+	server     *http.Server
 }
 
 // New creates a probe server.
@@ -52,9 +55,18 @@ func (s *Server) Start() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/probe", s.handleProbe)
 	mux.HandleFunc("/observations", s.handleObservations)
+	mux.HandleFunc("/capture", s.handleCapturePage)
+	mux.HandleFunc("/api/capture", s.handleCaptureAPI)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		http.Redirect(w, r, "/capture", http.StatusFound)
 	})
 
 	ln, err := net.Listen("tcp", s.Addr)
@@ -183,14 +195,8 @@ func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
 	if r.TLS != nil {
 		EnrichWithTLS(&obs, *r.TLS)
 	}
-	if h2 := s.takeH2(r.RemoteAddr); h2 != nil {
+	if h2 := s.h2FromRequest(r); h2 != nil {
 		obs.H2 = h2
-	} else if conn, ok := r.Context().Value(connContextKey{}).(net.Conn); ok {
-		if cap, ok := conn.(*h2TrackedConn); ok {
-			if inner, ok := cap.Conn.(*h2wire.CaptureConn); ok {
-				obs.H2 = inner.Observation()
-			}
-		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

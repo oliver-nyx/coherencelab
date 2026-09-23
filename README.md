@@ -72,6 +72,16 @@ go build -o bin/coherencelab ./cmd/coherencelab
 
 Live mode captures the actual HTTP/2 SETTINGS frame sent on the wire and compares it to the profile. Local mode still validates configured SETTINGS offline.
 
+### Capture a profile from a real browser
+
+```bash
+./bin/coherencelab serve --addr 127.0.0.1:8443 --capture-dir ./captured
+# Open https://127.0.0.1:8443/capture in Chrome/Firefox/Safari
+# Click "Capture & save profile" → writes ./captured/<id>.yaml
+```
+
+See [docs/browser-capture.md](docs/browser-capture.md).
+
 ### CI integration
 
 ```bash
@@ -330,7 +340,7 @@ coherencelab/
 | GitHub Action (reusable / marketplace-ready) | ✓ Complete |
 | Blog: identity coherence write-up | ✓ Complete |
 | JS runtime probes (WebGL, navigator) | ✓ Complete |
-| Profile auto-capture from real browser | Planned |
+| Profile auto-capture from real browser | ✓ Complete |
 | Web UI report viewer | Planned |
 
 ## Roadmap
@@ -339,7 +349,7 @@ coherencelab/
 - [x] GitHub Action for CI
 - [x] Identity coherence blog write-up
 - [x] JS runtime fingerprint probes (WebGL, navigator)
-- [ ] Profile sync from live browser capture
+- [x] Profile sync from live browser capture
 - [ ] Web UI report viewer
 
 ## Docs
@@ -348,6 +358,7 @@ coherencelab/
 - [GitHub Action](docs/github-action.md)
 - [Blog: Why your HTTP client gets blocked](docs/blog/identity-coherence.md)
 - [JS runtime probes](docs/adapters/js-runtime.md)
+- [Browser profile capture](docs/browser-capture.md)
 - Adapter docs under [`docs/adapters/`](docs/adapters/)
 
 ## License

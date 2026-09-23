@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CoherenceLab — Capture</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --text: #e7ecf3;
+      --muted: #8b9bb4;
+      --accent: #3d9cfd;
+      --ok: #3dd68c;
+      --err: #f07178;
+      --border: #2a3548;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, #1a2a44, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1.25rem 3rem;
+    }
+    main { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); margin-bottom: 1.5rem; line-height: 1.5; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.35rem;
+      margin-bottom: 1rem;
+    }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.35rem; }
+    input {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #121925;
+      color: var(--text);
+      margin-bottom: 0.9rem;
+    }
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 8px;
+      padding: 0.75rem 1.1rem;
+      background: var(--accent);
+      color: #041018;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; cursor: wait; }
+    pre {
+      background: #0c1118;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.9rem;
+      overflow: auto;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      max-height: 360px;
+    }
+    .status { margin-top: 0.85rem; font-size: 0.95rem; }
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--err); }
+    .row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Capture browser identity</h1>
+    <p class="sub">
+      Open this page in the real browser you want to profile.
+      We collect HTTP headers from this request plus <code>navigator</code> / WebGL from JavaScript,
+      then generate a draft CoherenceLab profile.
+    </p>
+
+    <div class="card">
+      <label for="profileId">Profile ID (optional)</label>
+      <input id="profileId" placeholder="e.g. my-chrome-win" />
+      <label for="profileName">Display name (optional)</label>
+      <input id="profileName" placeholder="e.g. My Chrome on Windows" />
+      <div class="row">
+        <button id="captureBtn" type="button">Capture &amp; save profile</button>
+        <button id="previewBtn" type="button" style="background:#2a3548;color:var(--text)">Preview JS only</button>
+      </div>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="card">
+      <label>Collected JS runtime</label>
+      <pre id="preview">{}</pre>
+    </div>
+  </main>
+  <script>
+    function collectJS() {
+      const nav = {
+        platform: navigator.platform || "",
+        user_agent: navigator.userAgent || "",
+        vendor: navigator.vendor || "",
+        language: navigator.language || "",
+        languages: Array.from(navigator.languages || []),
+        hardware_concurrency: navigator.hardwareConcurrency || 0,
+        device_memory: navigator.deviceMemory || 0,
+        max_touch_points: navigator.maxTouchPoints || 0,
+        webdriver: navigator.webdriver === true
+      };
+      let webgl = null;
+      try {
+        const c = document.createElement("canvas");
+        const gl = c.getContext("webgl") || c.getContext("experimental-webgl");
+        if (gl) {
+          const ext = gl.getExtension("WEBGL_debug_renderer_info");
+          if (ext) {
+            webgl = {
+              vendor: String(gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) || ""),
+              renderer: String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || "")
+            };
+          }
+        }
+      } catch (_) {}
+      return { navigator: nav, webgl: webgl, source: "probe" };
+    }
+
+    const preview = document.getElementById("preview");
+    const statusEl = document.getElementById("status");
+    const btn = document.getElementById("captureBtn");
+
+    document.getElementById("previewBtn").addEventListener("click", () => {
+      preview.textContent = JSON.stringify(collectJS(), null, 2);
+      statusEl.className = "status ok";
+      statusEl.textContent = "JS preview updated.";
+    });
+
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      statusEl.className = "status";
+      statusEl.textContent = "Capturing…";
+      const js = collectJS();
+      preview.textContent = JSON.stringify(js, null, 2);
+      const body = {
+        id: document.getElementById("profileId").value.trim(),
+        name: document.getElementById("profileName").value.trim(),
+        js_runtime: js
+      };
+      try {
+        const res = await fetch("/api/capture", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || res.statusText);
+        statusEl.className = "status ok";
+        let msg = data.message || "Capture ok";
+        if (data.capture && data.capture.profile_path) {
+          msg += " — id: " + data.capture.profile_id;
+        }
+        statusEl.textContent = msg;
+      } catch (err) {
+        statusEl.className = "status err";
+        statusEl.textContent = String(err.message || err);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    preview.textContent = JSON.stringify(collectJS(), null, 2);
+  </script>
+</body>
+</html>

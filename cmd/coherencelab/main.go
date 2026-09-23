@@ -320,25 +320,43 @@ func captureCmd() *cobra.Command {
 }
 
 func serveCmd() *cobra.Command {
-	var addr string
+	var addr, captureDir string
 	cmd := &cobra.Command{
 		Use:   "serve",
-		Short: "Start a local TLS probe server",
-		Long:  `Starts a local HTTPS probe server that records client identity signals. Use with --mode live --probe https://127.0.0.1:8443/probe (with --insecure if needed).`,
+		Short: "Start a local TLS probe + browser capture server",
+		Long: `Starts a local HTTPS server for live probes and real-browser profile capture.
+
+  GET  /capture       — open in Chrome/Firefox/Safari to auto-capture a profile
+  POST /api/capture   — receive JS runtime + write YAML (when --capture-dir is set)
+  GET  /probe         — live scan target
+  GET  /observations  — recorded probe observations
+  GET  /health        — health check`,
+		Example: `  coherencelab serve --addr 127.0.0.1:8443 --capture-dir ./captured
+  # then open https://127.0.0.1:8443/capture in your browser`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srv := probe.New(addr)
+			srv.CaptureDir = captureDir
 			if err := srv.Start(); err != nil {
 				return err
 			}
 			fmt.Printf("CoherenceLab probe server listening on https://%s\n", addr)
-			fmt.Printf("  GET /probe         — receive probe requests\n")
-			fmt.Printf("  GET /observations  — view captured observations\n")
-			fmt.Printf("  GET /health        — health check\n")
-			fmt.Println("\nPress Ctrl+C to stop.")
+			fmt.Printf("  GET  /capture        — browser profile capture UI\n")
+			fmt.Printf("  POST /api/capture    — save capture (+ YAML if --capture-dir set)\n")
+			fmt.Printf("  GET  /probe          — receive live probe requests\n")
+			fmt.Printf("  GET  /observations   — view captured observations\n")
+			fmt.Printf("  GET  /health         — health check\n")
+			if captureDir != "" {
+				fmt.Printf("\nCapture directory: %s\n", captureDir)
+			} else {
+				fmt.Println("\nTip: pass --capture-dir ./captured to write profile YAML automatically.")
+			}
+			fmt.Printf("\nOpen https://%s/capture in a real browser (accept the self-signed cert).\n", addr)
+			fmt.Println("Press Ctrl+C to stop.")
 			select {}
 		},
 	}
 	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:8443", "listen address")
+	cmd.Flags().StringVar(&captureDir, "capture-dir", "", "directory to write captured JSON + profile YAML")
 	return cmd
 }
 
@@ -375,7 +393,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.5.0")
+			fmt.Println("coherencelab v1.6.0")
 		},
 	}
 }

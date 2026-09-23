@@ -41,18 +41,26 @@ func ToProfile(in *Input) (*profile.Profile, error) {
 		return nil, fmt.Errorf("capture id required")
 	}
 	s := in.Snapshot
+	meta := InferFromUA(s.UserAgent)
+	browser := defaultStr(in.Browser, meta.Browser)
+	platform := defaultStr(in.Platform, meta.Platform)
+	version := defaultStr(in.Version, meta.Version)
+
 	p := &profile.Profile{
-		ID:       in.ID,
-		Name:     in.Name,
-		Browser:  defaultStr(in.Browser, "chrome"),
-		Version:  defaultStr(in.Version, "131"),
-		Platform: defaultStr(in.Platform, "windows"),
-		Engine:   "blink",
+		ID:          in.ID,
+		Name:        in.Name,
+		Browser:     browser,
+		Version:     version,
+		Platform:    platform,
+		Engine:      meta.Engine,
 		Description: "Auto-captured profile — review and refine before production use.",
 		UserAgent: profile.UserAgentSpec{
 			Value:     s.UserAgent,
 			Pattern:   guessPattern(s.UserAgent),
 			MatchMode: "contains",
+			Major:     GuessMajor(version),
+			Platform:  platform,
+			Mobile:    meta.Mobile,
 		},
 		ClientHints: profile.ClientHintsSpec{
 			SecCHUA:         s.SecCHUA,
@@ -64,6 +72,7 @@ func ToProfile(in *Input) (*profile.Profile, error) {
 			Required:       map[string]string{},
 			Accept:         s.Accept,
 			AcceptEncoding: s.AcceptEncoding,
+			Forbidden:      []string{"X-Selenium", "X-Webdriver"},
 		},
 		AcceptLanguage: profile.AcceptLanguageSpec{
 			Pattern: s.AcceptLanguage,
@@ -73,16 +82,9 @@ func ToProfile(in *Input) (*profile.Profile, error) {
 			MinVersion:   "TLS 1.2",
 			MaxVersion:   "TLS 1.3",
 			ALPN:         []string{"h2", "http/1.1"},
-			UTLSClientID: guessUTLS(in.Browser),
+			UTLSClientID: guessUTLS(browser),
 		},
-		HTTP2: profile.HTTP2Spec{
-			HeaderTableSize:   65536,
-			EnablePush:        0,
-			MaxConcurrent:     1000,
-			InitialWindowSize: 6291456,
-			MaxFrameSize:      16384,
-			MaxHeaderListSize: 262144,
-		},
+		HTTP2: defaultHTTP2(browser),
 	}
 	if s.H2 != nil {
 		p.HTTP2 = profile.HTTP2Spec{
@@ -94,8 +96,18 @@ func ToProfile(in *Input) (*profile.Profile, error) {
 			MaxHeaderListSize: s.H2.MaxHeaderListSize,
 		}
 	}
-	if s.TLS != nil && s.TLS.UTLSClientID != "" {
-		p.TLS.UTLSClientID = s.TLS.UTLSClientID
+	if s.TLS != nil {
+		if s.TLS.UTLSClientID != "" {
+			p.TLS.UTLSClientID = s.TLS.UTLSClientID
+		}
+		if s.TLS.ALPN != "" {
+			p.TLS.ALPN = []string{s.TLS.ALPN, "http/1.1"}
+		}
+	}
+	// CriOS must use Safari/iOS TLS.
+	if strings.Contains(strings.ToLower(s.UserAgent), "crios/") {
+		p.TLS.UTLSClientID = "safari_ios_18"
+		p.Engine = "webkit"
 	}
 	if s.JS != nil {
 		p.JSRuntime = jsToProfile(s.JS)
@@ -110,6 +122,26 @@ func ToProfile(in *Input) (*profile.Profile, error) {
 		p.Name = in.ID
 	}
 	return p, p.Validate()
+}
+
+func defaultHTTP2(browser string) profile.HTTP2Spec {
+	switch strings.ToLower(browser) {
+	case "firefox":
+		return profile.HTTP2Spec{
+			HeaderTableSize: 65536, EnablePush: 0, MaxConcurrent: 100,
+			InitialWindowSize: 131072, MaxFrameSize: 16384, MaxHeaderListSize: 0,
+		}
+	case "safari":
+		return profile.HTTP2Spec{
+			HeaderTableSize: 4096, EnablePush: 0, MaxConcurrent: 100,
+			InitialWindowSize: 2097152, MaxFrameSize: 16384, MaxHeaderListSize: 0,
+		}
+	default:
+		return profile.HTTP2Spec{
+			HeaderTableSize: 65536, EnablePush: 0, MaxConcurrent: 1000,
+			InitialWindowSize: 6291456, MaxFrameSize: 16384, MaxHeaderListSize: 262144,
+		}
+	}
 }
 
 // WriteYAML writes profile to path.
@@ -129,23 +161,16 @@ func defaultStr(v, fallback string) string {
 }
 
 func guessPattern(ua string) string {
-	for _, part := range []string{"Edg/", "Chrome/", "Firefox/", "Version/"} {
+	for _, part := range []string{"CriOS/", "Edg/", "OPR/", "Chrome/", "Firefox/", "Version/"} {
 		if idx := strings.Index(ua, part); idx >= 0 {
 			end := strings.IndexAny(ua[idx:], " ;")
 			if end > 0 {
 				return ua[idx : idx+end]
 			}
+			return ua[idx:]
 		}
 	}
 	return ua
-}
-
-func primaryLocale(al string) string {
-	if al == "" {
-		return "en-US"
-	}
-	primary := strings.Split(strings.Split(al, ",")[0], ";")[0]
-	return strings.TrimSpace(primary)
 }
 
 func guessUTLS(browser string) string {
@@ -159,6 +184,14 @@ func guessUTLS(browser string) string {
 	default:
 		return "chrome_131"
 	}
+}
+
+func primaryLocale(al string) string {
+	if al == "" {
+		return "en-US"
+	}
+	primary := strings.Split(strings.Split(al, ",")[0], ";")[0]
+	return strings.TrimSpace(primary)
 }
 
 func canonicalHeader(k string) string {
