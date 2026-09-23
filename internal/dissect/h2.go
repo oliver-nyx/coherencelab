@@ -47,12 +47,14 @@ type Frame struct {
 
 // H2Session is a dissected client preface + frame sequence.
 type H2Session struct {
-	HasPreface bool
-	Frames     []Frame
-	Settings   []H2Setting
+	HasPreface    bool
+	Frames        []Frame
+	Settings      []H2Setting
 	WindowUpdates []WindowUpdate
-	Findings   []string
-	Raw        []byte
+	HeaderBlock   *HeaderBlock
+	HeaderBlocks  []*HeaderBlock
+	Findings      []string
+	Raw           []byte
 }
 
 // H2Setting is one SETTINGS parameter.
@@ -102,6 +104,9 @@ func ParseH2(b []byte) (*H2Session, error) {
 		s.Frames = append(s.Frames, fr)
 	}
 	s.Findings = h2Findings(s)
+	if s.HeaderBlock != nil {
+		s.Findings = append(s.Findings, s.HeaderBlock.Findings...)
+	}
 	return s, nil
 }
 
@@ -146,8 +151,24 @@ func annotateFrame(s *H2Session, fr *Frame) {
 		fr.Note = "RFC 9218 PRIORITY_UPDATE — Chromium ships this. Absence on a Chrome claim is a coherence failure at the H2 layer."
 		fr.Detail = string(fr.Payload)
 	case FrameHeaders:
-		fr.Note = "HEADERS payload is HPACK-encoded. Pseudo-header order (:method,:authority,:scheme,:path) is a high-value fingerprint; parse with an HPACK decoder (lab follow-up)."
-		fr.Detail = fmt.Sprintf("flags=0x%02x payload=%d bytes (HPACK opaque here)", fr.Flags, len(fr.Payload))
+		block, note := extractHeaderBlock(fr)
+		fr.Note = note
+		if block != nil {
+			hb, err := DecodeHeaderBlock(block)
+			if err != nil {
+				fr.Detail = fmt.Sprintf("HPACK error: %v", err)
+				fr.Note = "HEADERS payload present but HPACK decode failed — truncated CONTINUATION or corrupt block."
+			} else {
+				s.HeaderBlocks = append(s.HeaderBlocks, hb)
+				if s.HeaderBlock == nil {
+					s.HeaderBlock = hb
+				}
+				fr.Detail = fmt.Sprintf("pseudo=%s family≈%s fields=%d", hb.PseudoOrder, hb.FamilyGuess, len(hb.Fields))
+				fr.Note = "HPACK preserves encoder field order. Pseudo-header order is a stable browser-family fingerprint (Chrome m,a,s,p / Firefox m,p,a,s / Safari m,s,p,a)."
+			}
+		} else {
+			fr.Detail = fmt.Sprintf("flags=0x%02x payload=%d bytes", fr.Flags, len(fr.Payload))
+		}
 	case FramePing:
 		fr.Note = "PING early in the session can be a middlebox/keepalive tell; browsers rarely PING first."
 	case FrameGoAway:
@@ -282,4 +303,33 @@ func settingNote(id uint16, val uint32) string {
 	default:
 		return ""
 	}
+}
+
+// extractHeaderBlock strips PADDED/PRIORITY framing from a HEADERS payload.
+func extractHeaderBlock(fr *Frame) (block []byte, note string) {
+	p := fr.Payload
+	o := 0
+	if fr.Flags&0x8 != 0 { // PADDED
+		if len(p) < 1 {
+			return nil, "PADDED flag set but no pad length"
+		}
+		pad := int(p[0])
+		o = 1
+		if o+pad > len(p) {
+			return nil, "invalid padding"
+		}
+		p = p[:len(p)-pad]
+	}
+	if fr.Flags&0x20 != 0 { // PRIORITY
+		if o+5 > len(p) {
+			return nil, "PRIORITY flag set but truncated"
+		}
+		o += 5
+		note = "RFC 7540 PRIORITY dependency present on HEADERS (legacy path)"
+	}
+	if fr.Flags&0x4 == 0 { // END_HEADERS
+		note = "END_HEADERS unset — need CONTINUATION (lab decodes single-frame blocks only)"
+		return nil, note
+	}
+	return p[o:], note
 }

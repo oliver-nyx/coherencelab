@@ -3,7 +3,6 @@ package dissect
 import (
 	"fmt"
 	"io"
-	"strings"
 )
 
 // FormatClientHello writes an expert-oriented dissection report.
@@ -80,9 +79,24 @@ func FormatH2(w io.Writer, s *H2Session) {
 			fmt.Fprintln(w)
 		}
 	}
+	if s.HeaderBlock != nil {
+		fmt.Fprintln(w, "\n── HPACK / pseudo-headers ──")
+		FormatHeaderBlock(w, s.HeaderBlock)
+		fmt.Fprintf(w, "\nAkamai-style H2 fingerprint:\n  %s\n", s.AkamaiH2Fingerprint())
+	}
 	fmt.Fprintln(w, "\n── Findings ──")
 	for _, f := range s.Findings {
 		fmt.Fprintf(w, "• %s\n", f)
 	}
-	_ = strings.Builder{}
+}
+
+// FormatHeaderBlock writes decoded HPACK fields + pseudo-order analysis.
+func FormatHeaderBlock(w io.Writer, hb *HeaderBlock) {
+	fmt.Fprintf(w, "Pseudo order: %s  (family≈%s)\n", hb.PseudoOrder, hb.FamilyGuess)
+	for i, f := range hb.Fields {
+		fmt.Fprintf(w, "%2d. %s: %s\n", i+1, f.Name, f.Value)
+	}
+	for _, f := range hb.Findings {
+		fmt.Fprintf(w, "  ※ %s\n", f)
+	}
 }

@@ -35,6 +35,8 @@ Read the code while you run it:
 - [`internal/dissect/`](internal/dissect/) — raw TLS + HTTP/2 parsers with RE annotations
 - [`docs/labs/01-clienthello.md`](docs/labs/01-clienthello.md)
 - [`docs/labs/02-http2-wire.md`](docs/labs/02-http2-wire.md)
+- [`docs/labs/03-hpack-pseudo.md`](docs/labs/03-hpack-pseudo.md)
+- [`docs/labs/04-extension-permutation.md`](docs/labs/04-extension-permutation.md)
 
 ## Coherence scoring (supporting tool)
 
@@ -329,7 +331,9 @@ coherencelab/
 |------|--------|
 | TLS ClientHello dissector (GREASE, order, ALPS, ECH) | ✓ Complete |
 | HTTP/2 frame dissector (SETTINGS / WINDOW_UPDATE / PRIORITY_UPDATE) | ✓ Complete |
-| RE labs (`lab clienthello`, `lab h2`) | ✓ Complete |
+| HPACK + pseudo-header order (Akamai field 4) | ✓ Complete |
+| ClientHello extension permutation entropy lab | ✓ Complete |
+| RE labs (`lab clienthello|h2|headers|permute`) | ✓ Complete |
 | 23-rule coherence engine | ✓ Complete |
 | 18 browser profiles | ✓ Complete |
 | Local + mutate + live scan modes | ✓ Complete |
@@ -357,14 +361,18 @@ coherencelab/
 - [x] Profile sync from live browser capture
 - [x] Web UI report viewer
 - [x] First-principles TLS ClientHello + HTTP/2 dissectors (`lab`)
-- [ ] HPACK / pseudo-header order lab
-- [ ] PRIORITY_UPDATE corpus diffs across browser versions
+- [x] HPACK / pseudo-header order lab
+- [x] Extension-permutation entropy lab
+- [ ] CONTINUATION merge + full HPACK dynamic-table stress corpus
+- [ ] Real-browser pcap corpus diffs vs uTLS parrot
 
 ## Docs
 
 - [Getting started](docs/getting-started.md)
 - [Lab 01: ClientHello dissection](docs/labs/01-clienthello.md)
 - [Lab 02: HTTP/2 wire](docs/labs/02-http2-wire.md)
+- [Lab 03: HPACK / pseudo-header order](docs/labs/03-hpack-pseudo.md)
+- [Lab 04: Extension permutation entropy](docs/labs/04-extension-permutation.md)
 - [GitHub Action](docs/github-action.md)
 - [Blog: Why your HTTP client gets blocked](docs/blog/identity-coherence.md)
 - [JS runtime probes](docs/adapters/js-runtime.md)

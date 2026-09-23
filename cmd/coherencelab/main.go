@@ -412,6 +412,11 @@ Read the code — the annotations are the curriculum.`,
 		sni          string
 		h2Hex        string
 		h2Bin        string
+		hpackHex     string
+		hpackBin     string
+		hpackDemo    string
+		permUTLS     string
+		permSamples  int
 	)
 
 	tlsCmd := &cobra.Command{
@@ -487,8 +492,77 @@ Read the code — the annotations are the curriculum.`,
 	h2Cmd.Flags().StringVar(&h2Hex, "hex", "", "HTTP/2 bytes as hex")
 	h2Cmd.Flags().StringVar(&h2Bin, "bin", "", "path to raw HTTP/2 bytes")
 
+	headersCmd := &cobra.Command{
+		Use:   "headers",
+		Short: "Decode an HPACK header block and classify pseudo-header order",
+		Example: `  coherencelab lab headers --demo chrome
+  coherencelab lab headers --demo firefox
+  coherencelab lab headers --bin headers.hpack`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var raw []byte
+			var err error
+			switch {
+			case hpackDemo != "":
+				order := dissect.PseudoChrome
+				switch hpackDemo {
+				case "chrome", "edge", "chromium":
+					order = dissect.PseudoChrome
+				case "firefox":
+					order = dissect.PseudoFirefox
+				case "safari":
+					order = dissect.PseudoSafari
+				default:
+					return fmt.Errorf("demo must be chrome|firefox|safari")
+				}
+				raw, err = dissect.EncodeIndexedPseudoBlock(order, "example.com")
+			case hpackBin != "":
+				raw, err = os.ReadFile(hpackBin)
+			case hpackHex != "":
+				raw, err = decodeHex(hpackHex)
+			default:
+				return fmt.Errorf("provide --demo, --hex, or --bin")
+			}
+			if err != nil {
+				return err
+			}
+			hb, err := dissect.DecodeHeaderBlock(raw)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(os.Stdout, "═══ HPACK header block ═══")
+			dissect.FormatHeaderBlock(os.Stdout, hb)
+			return nil
+		},
+	}
+	headersCmd.Flags().StringVar(&hpackDemo, "demo", "", "emit chrome|firefox|safari pseudo order")
+	headersCmd.Flags().StringVar(&hpackHex, "hex", "", "HPACK block as hex")
+	headersCmd.Flags().StringVar(&hpackBin, "bin", "", "path to HPACK block bytes")
+
+	permCmd := &cobra.Command{
+		Use:   "permute",
+		Short: "Measure ClientHello extension-order entropy across repeated uTLS hellos",
+		Example: `  coherencelab lab permute --utls chrome_131 --samples 8
+  coherencelab lab permute --utls firefox_133 --samples 8`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if permUTLS == "" {
+				return fmt.Errorf("--utls required")
+			}
+			rep, err := dissect.AnalyzeExtensionPermutation(permUTLS, sni, permSamples)
+			if err != nil {
+				return err
+			}
+			dissect.FormatPermutation(os.Stdout, rep)
+			return nil
+		},
+	}
+	permCmd.Flags().StringVar(&permUTLS, "utls", "", "uTLS client id (e.g. chrome_131)")
+	permCmd.Flags().IntVar(&permSamples, "samples", 8, "how many ClientHellos to synthesize")
+	permCmd.Flags().StringVar(&sni, "sni", "example.com", "SNI used when synthesizing")
+
 	cmd.AddCommand(tlsCmd)
 	cmd.AddCommand(h2Cmd)
+	cmd.AddCommand(headersCmd)
+	cmd.AddCommand(permCmd)
 	return cmd
 }
 
@@ -581,7 +655,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.8.0")
+			fmt.Println("coherencelab v1.8.1")
 		},
 	}
 }

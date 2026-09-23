@@ -29,7 +29,6 @@ Questions the report should help you answer:
 - Findings that cite **known browser constants**, not vibes.
 - Explicit boundary: HEADERS payload left opaque with a pointer to HPACK/pseudo-order as the next hard problem.
 
-## Tie-in to coherence
+## Next
 
-After you can read ClientHello + H2 SETTINGS from bytes, `coherencelab scan` stops
-feeling like a black box: the scorer is checking the same surfaces you just dissected.
+[Lab 03 — HPACK & pseudo-header order](03-hpack-pseudo.md)
