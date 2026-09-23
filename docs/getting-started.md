@@ -74,7 +74,18 @@ You can also probe public fingerprint endpoints (use responsibly):
 
 ## CI pipeline
 
-Add to GitHub Actions:
+### Option A — marketplace-style composite action
+
+```yaml
+- uses: oliver-nyx/coherencelab@v1.4.0
+  with:
+    profile: chrome-131-win
+    min-score: "90"
+```
+
+See [GitHub Action docs](github-action.md).
+
+### Option B — build from source
 
 ```yaml
 - name: Coherence check
@@ -86,6 +97,7 @@ Add to GitHub Actions:
 ## Next steps
 
 - Read [README](../README.md) for full CLI reference
+- Read the [identity coherence blog post](blog/identity-coherence.md)
 - Create custom profiles in `profiles/`
 - Use `demo` command to see coherent vs mismatched examples
 - Integrate via `pkg/coherencelab` Go API

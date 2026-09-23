@@ -1,0 +1,131 @@
+name: CoherenceLab Scan
+description: Validate browser identity coherence (TLS, HTTP/2, headers, Client Hints) in CI
+author: oliver-nyx
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  profile:
+    description: Browser profile ID (e.g. chrome-131-win, chrome-131-ios, opera-116-win)
+    required: true
+  min-score:
+    description: Minimum score percentage required to pass (used with CI mode)
+    required: false
+    default: "90"
+  mode:
+    description: Scan mode — local, mutate, or live
+    required: false
+    default: local
+  mutate:
+    description: Mutation scenario when mode=mutate (wrong-platform, wrong-browser, automation-leak, tls-mismatch)
+    required: false
+    default: ""
+  probe:
+    description: Probe URL when mode=live
+    required: false
+    default: ""
+  insecure:
+    description: Skip TLS verify for live probes (true/false)
+    required: false
+    default: "false"
+  version:
+    description: CoherenceLab release tag or branch to install (ignored when local-source is set)
+    required: false
+    default: "v1.4.0"
+  local-source:
+    description: Path to a local CoherenceLab checkout (relative to workspace). Skips git clone — use "." when dogfooding this repo.
+    required: false
+    default: ""
+  working-directory:
+    description: Working directory for the scan (relative to workspace)
+    required: false
+    default: "."
+  go-version:
+    description: Go version used when building from source
+    required: false
+    default: "1.24"
+
+outputs:
+  grade:
+    description: Letter grade from the scan (A–F)
+    value: ${{ steps.scan.outputs.grade }}
+  score:
+    description: Score percentage from the scan
+    value: ${{ steps.scan.outputs.score }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve CoherenceLab source
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [[ -n "${{ inputs.local-source }}" ]]; then
+          DEST="${{ github.workspace }}/${{ inputs.local-source }}"
+          DEST="$(cd "$DEST" && pwd)"
+        else
+          DEST="${RUNNER_TEMP}/coherencelab-src"
+          rm -rf "$DEST"
+          git clone --depth 1 --branch "${{ inputs.version }}" \
+            https://github.com/oliver-nyx/coherencelab.git "$DEST"
+        fi
+        echo "COHERENCELAB_SRC=$DEST" >> "$GITHUB_ENV"
+        echo "COHERENCELAB_PROFILES=$DEST/profiles" >> "$GITHUB_ENV"
+        echo "Resolved source: $DEST"
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+
+    - name: Build CoherenceLab
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd "$COHERENCELAB_SRC"
+        go build -o "$RUNNER_TEMP/coherencelab" ./cmd/coherencelab
+        echo "COHERENCELAB_BIN=$RUNNER_TEMP/coherencelab" >> "$GITHUB_ENV"
+
+    - name: Run coherence scan
+      id: scan
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+        ARGS=(scan --profile "${{ inputs.profile }}" --profiles "$COHERENCELAB_PROFILES" --ci --min-score "${{ inputs.min-score }}" --format json -o "$RUNNER_TEMP/coherencelab-report.json")
+        MODE="${{ inputs.mode }}"
+        if [[ -n "$MODE" && "$MODE" != "local" ]]; then
+          ARGS+=(--mode "$MODE")
+        fi
+        if [[ -n "${{ inputs.mutate }}" ]]; then
+          ARGS+=(--mutate "${{ inputs.mutate }}")
+        fi
+        if [[ -n "${{ inputs.probe }}" ]]; then
+          ARGS+=(--probe "${{ inputs.probe }}")
+        fi
+        if [[ "${{ inputs.insecure }}" == "true" ]]; then
+          ARGS+=(--insecure)
+        fi
+
+        set +e
+        "$COHERENCELAB_BIN" "${ARGS[@]}"
+        CODE=$?
+        set -e
+
+        REPORT="$RUNNER_TEMP/coherencelab-report.json"
+        if [[ -f "$REPORT" ]]; then
+          GRADE=$(python3 -c "import json; print(json.load(open(r'$REPORT'))['result']['grade'])")
+          SCORE=$(python3 -c "import json; print(json.load(open(r'$REPORT'))['result']['percentage'])")
+          echo "grade=${GRADE}" >> "$GITHUB_OUTPUT"
+          echo "score=${SCORE}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### CoherenceLab result"
+            echo "- Profile: \`${{ inputs.profile }}\`"
+            echo "- Grade: **${GRADE}**"
+            echo "- Score: **${SCORE}%**"
+            echo "- Min score: ${{ inputs.min-score }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+        exit $CODE

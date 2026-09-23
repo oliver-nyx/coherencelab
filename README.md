@@ -76,6 +76,17 @@ Live mode captures the actual HTTP/2 SETTINGS frame sent on the wire and compare
 echo $?  # 0 = pass, 1 = critical failure or score below threshold
 ```
 
+Or use the reusable GitHub Action:
+
+```yaml
+- uses: oliver-nyx/coherencelab@v1.4.0
+  with:
+    profile: chrome-131-win
+    min-score: "90"
+```
+
+See [docs/github-action.md](docs/github-action.md).
+
 ### Import httpcloak session
 
 ```bash
@@ -306,17 +317,27 @@ coherencelab/
 | Playwright / patchright import adapter | ✓ Complete |
 | curl-impersonate adapter | ✓ Complete |
 | Compare command (diff two exports) | ✓ Complete |
+| GitHub Action (reusable / marketplace-ready) | ✓ Complete |
+| Blog: identity coherence write-up | ✓ Complete |
 | JS runtime probes (WebGL, navigator) | Planned |
 | Profile auto-capture from real browser | Planned |
-| Web UI + GitHub Action | Planned |
+| Web UI report viewer | Planned |
 
 ## Roadmap
 
-- [ ] Adapter plugins for httpcloak, curl-impersonate, Playwright
+- [x] Adapter plugins for httpcloak, curl-impersonate, Playwright
+- [x] GitHub Action for CI
+- [x] Identity coherence blog write-up
 - [ ] JS runtime fingerprint probes (WebGL, canvas, navigator)
 - [ ] Profile sync from live browser capture
 - [ ] Web UI report viewer
-- [ ] GitHub Action for CI
+
+## Docs
+
+- [Getting started](docs/getting-started.md)
+- [GitHub Action](docs/github-action.md)
+- [Blog: Why your HTTP client gets blocked](docs/blog/identity-coherence.md)
+- Adapter docs under [`docs/adapters/`](docs/adapters/)
 
 ## License
 

@@ -1,0 +1,57 @@
+name: Action smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  action-local:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan chrome-131-win via composite action
+        id: ok
+        uses: ./
+        with:
+          profile: chrome-131-win
+          local-source: .
+          min-score: "90"
+
+      - name: Assert outputs
+        run: |
+          echo "grade=${{ steps.ok.outputs.grade }} score=${{ steps.ok.outputs.score }}"
+          test "${{ steps.ok.outputs.grade }}" = "A"
+
+  action-crios:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          profile: chrome-131-ios
+          local-source: .
+          min-score: "90"
+
+  action-mutate-fails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: bad
+        continue-on-error: true
+        uses: ./
+        with:
+          profile: chrome-131-win
+          local-source: .
+          mode: mutate
+          mutate: wrong-platform
+          min-score: "90"
+      - name: Expect failure
+        run: |
+          if [[ "${{ steps.bad.outcome }}" == "success" ]]; then
+            echo "mutated identity must not pass CI"
+            exit 1
+          fi
+          echo "mutation correctly failed the scan"
