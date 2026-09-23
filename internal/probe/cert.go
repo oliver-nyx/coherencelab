@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
+	"net"
 	"sync"
 	"time"
 
@@ -37,7 +38,8 @@ func generateSelfSigned() (*utls.Certificate, error) {
 			KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 			BasicConstraintsValid: true,
-			DNSNames:              []string{"localhost", "127.0.0.1"},
+			DNSNames:              []string{"localhost"},
+			IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
 		}
 		der, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
 		if err != nil {

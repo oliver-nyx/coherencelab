@@ -146,7 +146,7 @@ go build -o bin/coherencelab ./cmd/coherencelab
 GitHub Actions (marketplace-style composite action ships in the same repo):
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.4.0
+- uses: oliver-nyx/coherencelab@v1.7.2
   with:
     profile: chrome-131-win
     min-score: "90"

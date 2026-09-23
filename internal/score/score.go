@@ -42,7 +42,7 @@ func Compute(findings []rules.Finding) Result {
 	var failedFindings []rules.Finding
 
 	for _, f := range findings {
-		if f.Weight == 0 && f.Severity == rules.SeverityInfo {
+		if f.Skipped || (f.Weight == 0 && f.Severity == rules.SeverityInfo) {
 			skipped++
 			continue
 		}
@@ -84,8 +84,8 @@ func Compute(findings []rules.Finding) Result {
 		CriticalFails:  critical,
 		Findings:       findings,
 		FailedFindings: failedFindings,
-	 CategoryScores:  catScores,
-		CategoryMax:     catMax,
+		CategoryScores: catScores,
+		CategoryMax:    catMax,
 	}
 }
 

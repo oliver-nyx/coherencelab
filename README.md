@@ -99,7 +99,7 @@ echo $?  # 0 = pass, 1 = critical failure or score below threshold
 Or use the reusable GitHub Action:
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.4.0
+- uses: oliver-nyx/coherencelab@v1.7.2
   with:
     profile: chrome-131-win
     min-score: "90"
@@ -303,15 +303,17 @@ coherencelab/
 ├── internal/
 │   ├── profile/            YAML profile loader + validation
 │   ├── signal/             Observed identity snapshot
-│   ├── rules/              18 coherence rules engine
+│   ├── rules/              23 coherence rules engine
 │   ├── score/              Weighted scoring + grading
 │   ├── client/             uTLS HTTP client + header builder
 │   ├── h2wire/             HTTP/2 SETTINGS wire capture
-│   ├── probe/              Local TLS probe server
+│   ├── probe/              Local TLS probe + browser capture server
 │   ├── scan/               Scan orchestration (local/live/mutate/import)
 │   ├── tlsfp/              JA3/JA4 + uTLS preset mapping
 │   ├── adapters/           httpcloak / Playwright / curl import
 │   ├── compare/            Diff two session exports
+│   ├── capture/            Session JSON → profile YAML
+│   ├── ui/                 Local Web UI report viewer
 │   └── report/             Text + JSON report rendering
 ├── action.yml              Reusable GitHub Action
 ├── pkg/coherencelab/       Public Go API
@@ -332,7 +334,7 @@ coherencelab/
 
 | Area | Status |
 |------|--------|
-| 18-rule coherence engine | ✓ Complete → **23 rules** |
+| 23-rule coherence engine | ✓ Complete |
 | 18 browser profiles | ✓ Complete |
 | Local + mutate + live scan modes | ✓ Complete |
 | TLS probe server + uTLS client | ✓ Complete |

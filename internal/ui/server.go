@@ -118,23 +118,26 @@ func (s *Server) handleScan(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "profile required", http.StatusBadRequest)
 		return
 	}
+	mode := scan.Mode(req.Mode)
+	if mode == "" {
+		mode = scan.ModeLocal
+	}
+	// UI only allows local/mutate — never live (SSRF via arbitrary probe URLs).
+	if mode != scan.ModeLocal && mode != scan.ModeMutate {
+		http.Error(w, "ui supports only local and mutate modes", http.StatusBadRequest)
+		return
+	}
 	p, err := profile.FindByID(s.ProfilesDir, req.Profile)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	mode := scan.Mode(req.Mode)
-	if mode == "" {
-		mode = scan.ModeLocal
-	}
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
 	defer cancel()
 	rep, err := scan.Run(ctx, scan.Options{
-		Profile:  p,
-		Mode:     mode,
-		Mutate:   req.Mutate,
-		ProbeURL: req.ProbeURL,
-		Insecure: req.Insecure,
+		Profile: p,
+		Mode:    mode,
+		Mutate:  req.Mutate,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

@@ -134,3 +134,109 @@ func TestChromeIOSUsesWebKitTLS(t *testing.T) {
 		}
 	}
 }
+
+func TestSkippedFindingsKeepZeroWeight(t *testing.T) {
+	p := &profile.Profile{
+		ID: "ff", Name: "Firefox", Browser: "firefox",
+		UserAgent: profile.UserAgentSpec{
+			Value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
+			Pattern: "Firefox/133", MatchMode: "contains", Major: 133,
+		},
+		TLS:   profile.TLSSpec{ALPN: []string{"h2"}, UTLSClientID: "firefox_133"},
+		HTTP2: profile.HTTP2Spec{HeaderTableSize: 65536, EnablePush: 0, MaxConcurrent: 100},
+		AcceptLanguage: profile.AcceptLanguageSpec{Primary: "en-US"},
+	}
+	s := &signal.Snapshot{
+		UserAgent:      p.UserAgent.Value,
+		AcceptLanguage: "en-US,en;q=0.5",
+		Headers:        map[string]string{},
+	}
+	findings := Evaluate(p, s, DefaultRules())
+	var skippedCount int
+	for _, f := range findings {
+		if f.Skipped {
+			skippedCount++
+			if f.Weight != 0 {
+				t.Fatalf("skipped finding %s has weight %d (score inflation)", f.ID, f.Weight)
+			}
+		}
+	}
+	if skippedCount < 5 {
+		t.Fatalf("expected several skipped findings, got %d", skippedCount)
+	}
+}
+
+func TestChromeTLSRequiresPresetNotJustJA3(t *testing.T) {
+	p := &profile.Profile{
+		ID: "chrome", Name: "Chrome", Browser: "chrome",
+		UserAgent: profile.UserAgentSpec{
+			Value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+			Pattern: "Chrome/131", MatchMode: "contains", Major: 131,
+		},
+		ClientHints: profile.ClientHintsSpec{
+			SecCHUA: `"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"`,
+			SecCHUAMobile: "?0", SecCHUAPlatform: `"Windows"`,
+		},
+		TLS: profile.TLSSpec{ALPN: []string{"h2"}, UTLSClientID: "chrome_131", MinVersion: "TLS 1.2", MaxVersion: "TLS 1.3"},
+		HTTP2: profile.HTTP2Spec{HeaderTableSize: 65536, EnablePush: 0, MaxConcurrent: 1000, InitialWindowSize: 6291456, MaxFrameSize: 16384, MaxHeaderListSize: 262144},
+		AcceptLanguage: profile.AcceptLanguageSpec{Primary: "en-US"},
+	}
+	s := &signal.Snapshot{
+		UserAgent: p.UserAgent.Value,
+		SecCHUA: p.ClientHints.SecCHUA, SecCHUAMobile: "?0", SecCHUAPlatform: `"Windows"`,
+		AcceptLanguage: "en-US,en;q=0.9",
+		Headers: map[string]string{},
+		TLS: &signal.TLSObservation{UTLSClientID: "firefox_133", JA3: "deadbeef", Version: "TLS 1.3", ALPN: "h2"},
+		H2:  &signal.H2Observation{HeaderTableSize: 65536, EnablePush: 0, MaxConcurrent: 1000, InitialWindowSize: 6291456, MaxFrameSize: 16384, MaxHeaderListSize: 262144},
+	}
+	findings := Evaluate(p, s, DefaultRules())
+	for _, f := range findings {
+		if f.ID == "cross.chrome_tls_ua" {
+			if f.Passed {
+				t.Fatal("JA3 alone must not satisfy chrome TLS cross-layer rule")
+			}
+			return
+		}
+	}
+	t.Fatal("cross.chrome_tls_ua finding missing")
+}
+
+func TestHTTP2EnablePushZeroIsChecked(t *testing.T) {
+	p := &profile.Profile{
+		ID: "chrome", Name: "Chrome", Browser: "chrome",
+		UserAgent: profile.UserAgentSpec{
+			Value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
+			Pattern: "Chrome/131", MatchMode: "contains", Major: 131,
+		},
+		ClientHints: profile.ClientHintsSpec{
+			SecCHUA: `"Google Chrome";v="131"`, SecCHUAMobile: "?0", SecCHUAPlatform: `"Windows"`,
+		},
+		TLS: profile.TLSSpec{ALPN: []string{"h2"}, UTLSClientID: "chrome_131"},
+		HTTP2: profile.HTTP2Spec{
+			HeaderTableSize: 65536, EnablePush: 0, MaxConcurrent: 1000,
+			InitialWindowSize: 6291456, MaxFrameSize: 16384, MaxHeaderListSize: 262144,
+		},
+		AcceptLanguage: profile.AcceptLanguageSpec{Primary: "en-US"},
+	}
+	s := &signal.Snapshot{
+		UserAgent: p.UserAgent.Value,
+		SecCHUA: p.ClientHints.SecCHUA, SecCHUAMobile: "?0", SecCHUAPlatform: `"Windows"`,
+		AcceptLanguage: "en-US",
+		Headers: map[string]string{},
+		TLS: &signal.TLSObservation{UTLSClientID: "chrome_131", Version: "TLS 1.3", ALPN: "h2"},
+		H2: &signal.H2Observation{
+			HeaderTableSize: 65536, EnablePush: 1, MaxConcurrent: 1000,
+			InitialWindowSize: 6291456, MaxFrameSize: 16384, MaxHeaderListSize: 262144,
+		},
+	}
+	findings := Evaluate(p, s, DefaultRules())
+	for _, f := range findings {
+		if f.ID == "http2.settings" {
+			if f.Passed {
+				t.Fatalf("ENABLE_PUSH=1 should fail when profile expects 0: %+v", f)
+			}
+			return
+		}
+	}
+	t.Fatal("http2.settings finding missing")
+}

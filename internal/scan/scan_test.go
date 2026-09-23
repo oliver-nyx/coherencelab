@@ -55,3 +55,28 @@ func TestMutateWrongBrowser(t *testing.T) {
 		t.Fatal("expected failures for browser mismatch")
 	}
 }
+
+func TestMutateAutomationLeakCritical(t *testing.T) {
+	p := loadChrome(t)
+	rep, err := Run(context.Background(), Options{Profile: p, Mode: ModeMutate, Mutate: "automation-leak"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Result.CriticalFails == 0 {
+		t.Fatal("automation headers should be a critical failure")
+	}
+	if rep.Result.Grade != "F" {
+		t.Fatalf("expected grade F, got %s", rep.Result.Grade)
+	}
+}
+
+func TestMutateJSWebdriverCritical(t *testing.T) {
+	p := loadChrome(t)
+	rep, err := Run(context.Background(), Options{Profile: p, Mode: ModeMutate, Mutate: "js-webdriver"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Result.CriticalFails == 0 {
+		t.Fatal("js-webdriver mutate should fail navigator.webdriver critically")
+	}
+}

@@ -52,17 +52,23 @@ func jsNavigatorWebdriverRule() Rule {
 		ID: "js.navigator_webdriver", Category: CategoryJSRuntime, Severity: SeverityCritical, Weight: 10,
 		Title: "navigator.webdriver matches profile expectation",
 		Check: func(p *profile.Profile, s *signal.Snapshot) Finding {
-			if p.JSRuntime == nil || p.JSRuntime.Navigator == nil || p.JSRuntime.Navigator.Webdriver == nil {
-				return skipped("js.navigator_webdriver", CategoryJSRuntime, "navigator.webdriver matches profile expectation")
-			}
 			if s.JS == nil || s.JS.Navigator == nil || s.JS.Navigator.Webdriver == nil {
 				return skipped("js.navigator_webdriver", CategoryJSRuntime, "navigator.webdriver matches profile expectation")
 			}
-			want := *p.JSRuntime.Navigator.Webdriver
 			got := *s.JS.Navigator.Webdriver
+			if p.JSRuntime != nil && p.JSRuntime.Navigator != nil && p.JSRuntime.Navigator.Webdriver != nil {
+				want := *p.JSRuntime.Navigator.Webdriver
+				return finding("js.navigator_webdriver", CategoryJSRuntime, SeverityCritical, 10,
+					"navigator.webdriver matches profile expectation",
+					fmt.Sprintf("%v", want), fmt.Sprintf("%v", got), want == got)
+			}
+			// No profile expectation: real browsers must not leak webdriver=true.
+			if !got {
+				return skipped("js.navigator_webdriver", CategoryJSRuntime, "navigator.webdriver matches profile expectation")
+			}
 			return finding("js.navigator_webdriver", CategoryJSRuntime, SeverityCritical, 10,
 				"navigator.webdriver matches profile expectation",
-				fmt.Sprintf("%v", want), fmt.Sprintf("%v", got), want == got)
+				"false", "true", false)
 		},
 	}
 }

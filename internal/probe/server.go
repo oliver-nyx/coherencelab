@@ -33,19 +33,21 @@ type Observation struct {
 
 // Server is a TLS probe server that captures client identity signals.
 type Server struct {
-	Addr       string
-	CaptureDir string // if set, /api/capture writes JSON + profile YAML here
-	mu         sync.RWMutex
-	logs       []Observation
-	h2ByAddr   map[string]*signal.H2Observation
+	Addr        string
+	CaptureDir  string // if set, /api/capture writes JSON + profile YAML here
+	mu          sync.RWMutex
+	logs        []Observation
+	maxLogs     int
+	h2ByAddr    map[string]*signal.H2Observation
 	lastCapture *capture.Input
-	server     *http.Server
+	server      *http.Server
 }
 
 // New creates a probe server.
 func New(addr string) *Server {
 	return &Server{
 		Addr:     addr,
+		maxLogs:  200,
 		h2ByAddr: make(map[string]*signal.H2Observation),
 	}
 }
@@ -205,6 +207,9 @@ func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	s.logs = append(s.logs, obs)
+	if s.maxLogs > 0 && len(s.logs) > s.maxLogs {
+		s.logs = append([]Observation(nil), s.logs[len(s.logs)-s.maxLogs:]...)
+	}
 	s.mu.Unlock()
 }
 

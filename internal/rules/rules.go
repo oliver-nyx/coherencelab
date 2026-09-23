@@ -45,6 +45,7 @@ type Finding struct {
 	Actual      string   `json:"actual,omitempty"`
 	Weight      int      `json:"weight"`
 	Passed      bool     `json:"passed"`
+	Skipped     bool     `json:"skipped,omitempty"`
 }
 
 // Rule is a validation function.
@@ -218,7 +219,7 @@ func requiredHeadersRule() Rule {
 
 func forbiddenHeadersRule() Rule {
 	return Rule{
-		ID: "headers.forbidden", Category: CategoryHeaders, Severity: SeverityMedium, Weight: 6,
+		ID: "headers.forbidden", Category: CategoryHeaders, Severity: SeverityCritical, Weight: 10,
 		Title: "Forbidden automation headers absent",
 		Check: func(p *profile.Profile, s *signal.Snapshot) Finding {
 			var found []string
@@ -232,7 +233,7 @@ func forbiddenHeadersRule() Rule {
 			if !passed {
 				actual = strings.Join(found, ", ")
 			}
-			return finding("headers.forbidden", CategoryHeaders, SeverityMedium, 6,
+			return finding("headers.forbidden", CategoryHeaders, SeverityCritical, 10,
 				"Forbidden automation headers absent", "none", actual, passed)
 		},
 	}
@@ -324,13 +325,49 @@ func tlsVersionRule() Rule {
 		ID: "tls.version", Category: CategoryTLS, Severity: SeverityMedium, Weight: 6,
 		Title: "TLS version within profile range",
 		Check: func(p *profile.Profile, s *signal.Snapshot) Finding {
-			if s.TLS == nil {
+			if s.TLS == nil || s.TLS.Version == "" {
 				return skipped("tls.version", CategoryTLS, "TLS version within profile range")
 			}
-			passed := s.TLS.Version != ""
+			rangeLabel := p.TLS.MinVersion + "-" + p.TLS.MaxVersion
+			passed := tlsVersionInRange(s.TLS.Version, p.TLS.MinVersion, p.TLS.MaxVersion)
 			return finding("tls.version", CategoryTLS, SeverityMedium, 6,
-				"TLS version within profile range", p.TLS.MinVersion+"-"+p.TLS.MaxVersion, s.TLS.Version, passed)
+				"TLS version within profile range", rangeLabel, s.TLS.Version, passed)
 		},
+	}
+}
+
+func tlsVersionInRange(got, minV, maxV string) bool {
+	g := tlsVersionRank(got)
+	if g == 0 {
+		return got != "" // unknown label — presence only
+	}
+	lo := tlsVersionRank(minV)
+	hi := tlsVersionRank(maxV)
+	if lo == 0 && hi == 0 {
+		return true
+	}
+	if lo == 0 {
+		lo = g
+	}
+	if hi == 0 {
+		hi = g
+	}
+	return g >= lo && g <= hi
+}
+
+func tlsVersionRank(v string) int {
+	v = strings.ToUpper(strings.TrimSpace(v))
+	switch {
+	case strings.Contains(v, "1.3"):
+		return 13
+	case strings.Contains(v, "1.2"):
+		return 12
+	case strings.Contains(v, "1.1"):
+		return 11
+	case strings.Contains(v, "1.0"):
+		return 10
+	default:
+		return 0
 	}
 }
 
@@ -358,7 +395,9 @@ func http2SettingsRule() Rule {
 			}
 			var diffs []string
 			for _, c := range checks {
-				if c.expected == 0 || !s.H2.HasSetting(c.name) {
+				// Check even when expected is 0 (e.g. ENABLE_PUSH=0). Skip only
+				// when the setting was absent on the wire (import/live).
+				if !s.H2.HasSetting(c.name) {
 					continue
 				}
 				total++
@@ -368,7 +407,7 @@ func http2SettingsRule() Rule {
 					diffs = append(diffs, fmt.Sprintf("%s=%d want %d", c.name, c.actual, c.expected))
 				}
 			}
-			passed := total > 0 && float64(matches)/float64(total) >= 0.8
+			passed := total > 0 && matches == total
 			actual := fmt.Sprintf("%d/%d match", matches, total)
 			if len(diffs) > 0 {
 				actual += ": " + strings.Join(diffs, "; ")
@@ -400,8 +439,12 @@ func crossLayerChromeRule() Rule {
 					p.TLS.UTLSClientID, s.TLS.UTLSClientID+" ja3="+s.TLS.JA3, passed)
 			}
 			uaChromium := strings.Contains(s.UserAgent, "Chrome/") || strings.Contains(s.UserAgent, "Edg/") || strings.Contains(s.UserAgent, "OPR/")
-			tlsChromium := chromiumTLSPreset(p.TLS.UTLSClientID) || chromiumTLSPreset(s.TLS.UTLSClientID)
-			passed := uaChromium && (tlsChromium || s.TLS.JA3 != "")
+			tlsID := s.TLS.UTLSClientID
+			if tlsID == "" {
+				tlsID = p.TLS.UTLSClientID
+			}
+			tlsChromium := chromiumTLSPreset(tlsID)
+			passed := uaChromium && tlsChromium
 			return finding("cross.chrome_tls_ua", CategoryCrossLayer, SeverityCritical, 12,
 				"Chromium User-Agent aligns with Chromium TLS fingerprint",
 				p.TLS.UTLSClientID, s.TLS.UTLSClientID+" ja3="+s.TLS.JA3, passed)
@@ -442,9 +485,14 @@ func crossLayerSafariRule() Rule {
 			if p.Browser != "safari" {
 				return skipped("cross.safari_consistency", CategoryCrossLayer, "Safari User-Agent aligns with Safari TLS profile")
 			}
-			passed := strings.Contains(s.UserAgent, "Safari/") && strings.Contains(s.UserAgent, "Version/")
+			passed := strings.Contains(s.UserAgent, "Safari/") && strings.Contains(s.UserAgent, "Version/") &&
+				!strings.Contains(s.UserAgent, "Chrome/") && !strings.Contains(s.UserAgent, "CriOS/")
 			if s.TLS != nil {
-				passed = passed && (strings.Contains(strings.ToLower(p.TLS.UTLSClientID), "safari") || s.TLS.JA3 != "")
+				tlsID := s.TLS.UTLSClientID
+				if tlsID == "" {
+					tlsID = p.TLS.UTLSClientID
+				}
+				passed = passed && iosTLSPreset(tlsID)
 			}
 			return finding("cross.safari_consistency", CategoryCrossLayer, SeverityCritical, 12,
 				"Safari User-Agent aligns with Safari TLS profile", p.TLS.UTLSClientID, s.UserAgent, passed)
@@ -479,7 +527,7 @@ func finding(id string, cat Category, sev Severity, weight int, title, expected,
 func skipped(id string, cat Category, title string) Finding {
 	return Finding{
 		ID: id, Category: cat, Severity: SeverityInfo, Weight: 0, Title: title,
-		Description: "Skipped — insufficient observed data", Passed: true,
+		Description: "Skipped — insufficient observed data", Passed: true, Skipped: true,
 	}
 }
 
@@ -576,7 +624,9 @@ func Evaluate(p *profile.Profile, s *signal.Snapshot, ruleSet []Rule) []Finding 
 		f := r.Check(p, s)
 		f.ID = r.ID
 		f.Category = r.Category
-		if f.Weight == 0 && r.Weight > 0 {
+		// Never restore weight onto skipped findings — that inflated scores
+		// by treating "not enough data" as a full pass.
+		if !f.Skipped && f.Weight == 0 && r.Weight > 0 {
 			f.Weight = r.Weight
 		}
 		if f.Severity == "" {

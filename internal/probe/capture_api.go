@@ -40,18 +40,18 @@ func (s *Server) handleCapturePage(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleCaptureAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	if err != nil {
-		http.Error(w, "read body", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "read body")
 		return
 	}
 	var payload capture.BrowserPayload
 	if len(body) > 0 {
 		if err := json.Unmarshal(body, &payload); err != nil {
-			http.Error(w, "invalid json: "+err.Error(), http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "invalid json: "+err.Error())
 			return
 		}
 	}
@@ -75,7 +75,7 @@ func (s *Server) handleCaptureAPI(w http.ResponseWriter, r *http.Request) {
 	in := capture.FromHTTP(r.Header.Get("User-Agent"), headers, order, tlsObs, h2, &payload)
 	p, err := capture.ToProfile(in)
 	if err != nil {
-		http.Error(w, "profile: "+err.Error(), http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "profile: "+err.Error())
 		return
 	}
 
@@ -88,7 +88,7 @@ func (s *Server) handleCaptureAPI(w http.ResponseWriter, r *http.Request) {
 
 	if s.CaptureDir != "" {
 		if err := os.MkdirAll(s.CaptureDir, 0o755); err != nil {
-			http.Error(w, "capture dir: "+err.Error(), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "capture dir: "+err.Error())
 			return
 		}
 		stamp := time.Now().UTC().Format("20060102-150405")
@@ -98,15 +98,15 @@ func (s *Server) handleCaptureAPI(w http.ResponseWriter, r *http.Request) {
 
 		data, err := json.MarshalIndent(in, "", "  ")
 		if err != nil {
-			http.Error(w, "marshal: "+err.Error(), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "marshal: "+err.Error())
 			return
 		}
 		if err := os.WriteFile(inputPath, data, 0o644); err != nil {
-			http.Error(w, "write input: "+err.Error(), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "write input: "+err.Error())
 			return
 		}
 		if err := capture.WriteYAML(profilePath, p); err != nil {
-			http.Error(w, "write profile: "+err.Error(), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "write profile: "+err.Error())
 			return
 		}
 		result.InputPath = inputPath
@@ -130,6 +130,12 @@ func (s *Server) handleCaptureAPI(w http.ResponseWriter, r *http.Request) {
 		"capture": result,
 		"input":   in,
 	})
+}
+
+func writeJSONError(w http.ResponseWriter, code int, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
 func (s *Server) h2FromRequest(r *http.Request) *signal.H2Observation {

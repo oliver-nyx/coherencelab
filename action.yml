@@ -32,7 +32,7 @@ inputs:
   version:
     description: CoherenceLab release tag or branch to install (ignored when local-source is set)
     required: false
-    default: "v1.7.1"
+    default: "v1.7.2"
   local-source:
     description: Path to a local CoherenceLab checkout (relative to workspace). Skips git clone — use "." when dogfooding this repo.
     required: false
@@ -59,15 +59,25 @@ runs:
   steps:
     - name: Resolve CoherenceLab source
       shell: bash
+      env:
+        INPUT_LOCAL_SOURCE: ${{ inputs.local-source }}
+        INPUT_VERSION: ${{ inputs.version }}
       run: |
         set -euo pipefail
-        if [[ -n "${{ inputs.local-source }}" ]]; then
-          DEST="${{ github.workspace }}/${{ inputs.local-source }}"
+        if [[ -n "$INPUT_LOCAL_SOURCE" ]]; then
+          DEST="${GITHUB_WORKSPACE}/${INPUT_LOCAL_SOURCE}"
           DEST="$(cd "$DEST" && pwd)"
         else
+          case "$INPUT_VERSION" in
+            v[0-9]*|main|master) ;;
+            *)
+              echo "Refusing unsafe version value: $INPUT_VERSION" >&2
+              exit 1
+              ;;
+          esac
           DEST="${RUNNER_TEMP}/coherencelab-src"
           rm -rf "$DEST"
-          git clone --depth 1 --branch "${{ inputs.version }}" \
+          git clone --depth 1 --branch "$INPUT_VERSION" \
             https://github.com/oliver-nyx/coherencelab.git "$DEST"
         fi
         echo "COHERENCELAB_SRC=$DEST" >> "$GITHUB_ENV"
@@ -91,20 +101,34 @@ runs:
       id: scan
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+      env:
+        INPUT_PROFILE: ${{ inputs.profile }}
+        INPUT_MIN_SCORE: ${{ inputs.min-score }}
+        INPUT_MODE: ${{ inputs.mode }}
+        INPUT_MUTATE: ${{ inputs.mutate }}
+        INPUT_PROBE: ${{ inputs.probe }}
+        INPUT_INSECURE: ${{ inputs.insecure }}
       run: |
         set -euo pipefail
-        ARGS=(scan --profile "${{ inputs.profile }}" --profiles "$COHERENCELAB_PROFILES" --ci --min-score "${{ inputs.min-score }}" --format json -o "$RUNNER_TEMP/coherencelab-report.json")
-        MODE="${{ inputs.mode }}"
-        if [[ -n "$MODE" && "$MODE" != "local" ]]; then
-          ARGS+=(--mode "$MODE")
+        case "$INPUT_MODE" in
+          local|mutate|live|"") ;;
+          *)
+            echo "Invalid mode: $INPUT_MODE" >&2
+            exit 1
+            ;;
+        esac
+        REPORT="$RUNNER_TEMP/coherencelab-report.json"
+        ARGS=(scan --profile "$INPUT_PROFILE" --profiles "$COHERENCELAB_PROFILES" --ci --min-score "$INPUT_MIN_SCORE" --format json -o "$REPORT")
+        if [[ -n "$INPUT_MODE" && "$INPUT_MODE" != "local" ]]; then
+          ARGS+=(--mode "$INPUT_MODE")
         fi
-        if [[ -n "${{ inputs.mutate }}" ]]; then
-          ARGS+=(--mutate "${{ inputs.mutate }}")
+        if [[ -n "$INPUT_MUTATE" ]]; then
+          ARGS+=(--mutate "$INPUT_MUTATE")
         fi
-        if [[ -n "${{ inputs.probe }}" ]]; then
-          ARGS+=(--probe "${{ inputs.probe }}")
+        if [[ -n "$INPUT_PROBE" ]]; then
+          ARGS+=(--probe "$INPUT_PROBE")
         fi
-        if [[ "${{ inputs.insecure }}" == "true" ]]; then
+        if [[ "$INPUT_INSECURE" == "true" ]]; then
           ARGS+=(--insecure)
         fi
 
@@ -113,18 +137,17 @@ runs:
         CODE=$?
         set -e
 
-        REPORT="$RUNNER_TEMP/coherencelab-report.json"
         if [[ -f "$REPORT" ]]; then
-          GRADE=$(python3 -c "import json; print(json.load(open(r'$REPORT'))['result']['grade'])")
-          SCORE=$(python3 -c "import json; print(json.load(open(r'$REPORT'))['result']['percentage'])")
+          GRADE=$(REPORT="$REPORT" python3 -c "import json,os; print(json.load(open(os.environ['REPORT']))['result']['grade'])")
+          SCORE=$(REPORT="$REPORT" python3 -c "import json,os; print(json.load(open(os.environ['REPORT']))['result']['percentage'])")
           echo "grade=${GRADE}" >> "$GITHUB_OUTPUT"
           echo "score=${SCORE}" >> "$GITHUB_OUTPUT"
           {
             echo "### CoherenceLab result"
-            echo "- Profile: \`${{ inputs.profile }}\`"
+            echo "- Profile: \`${INPUT_PROFILE}\`"
             echo "- Grade: **${GRADE}**"
             echo "- Score: **${SCORE}%**"
-            echo "- Min score: ${{ inputs.min-score }}"
+            echo "- Min score: ${INPUT_MIN_SCORE}"
           } >> "$GITHUB_STEP_SUMMARY"
         fi
 

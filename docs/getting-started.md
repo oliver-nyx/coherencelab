@@ -15,7 +15,7 @@ Anti-bot systems correlate signals across layers. CoherenceLab catches these mis
 
 ## Installation
 
-Requires Go 1.22+.
+Requires Go 1.24+.
 
 ```bash
 cd coherencelab
@@ -36,7 +36,7 @@ Checks:   N passed, 0 failed
 ✓ Identity signals are coherent for profile chrome-131-win
 ```
 
-Some checks may be **skipped** in local mode (e.g. live TLS ALPN) — that is normal.
+Some checks may be **skipped** in local mode (e.g. live TLS ALPN) — that is normal. Skipped checks do not count toward the score.
 
 ## Understanding failures
 
@@ -62,7 +62,7 @@ Local mode validates header configuration. Live mode performs a **real TLS hands
 ```bash
 ./bin/coherencelab serve --addr 127.0.0.1:8443
 ./bin/coherencelab scan --profile chrome-131-win --mode live \
-  --probe https://127.0.0.1:8443/probe --profiles profiles
+  --probe https://127.0.0.1:8443/probe --insecure --profiles profiles
 ```
 
 You can also probe public fingerprint endpoints (use responsibly):
@@ -77,7 +77,7 @@ You can also probe public fingerprint endpoints (use responsibly):
 ### Option A — marketplace-style composite action
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.4.0
+- uses: oliver-nyx/coherencelab@v1.7.2
   with:
     profile: chrome-131-win
     min-score: "90"

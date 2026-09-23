@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -354,7 +356,9 @@ func serveCmd() *cobra.Command {
 			}
 			fmt.Printf("\nOpen https://%s/capture in a real browser (accept the self-signed cert).\n", addr)
 			fmt.Println("Press Ctrl+C to stop.")
-			select {}
+			return waitForInterrupt(func(ctx context.Context) error {
+				return srv.Stop(ctx)
+			})
 		},
 	}
 	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:8443", "listen address")
@@ -379,7 +383,9 @@ func uiCmd() *cobra.Command {
 			fmt.Printf("  Profiles: %s\n", profilesDir)
 			fmt.Printf("Open http://%s in your browser.\n", addr)
 			fmt.Println("Press Ctrl+C to stop.")
-			select {}
+			return waitForInterrupt(func(ctx context.Context) error {
+				return srv.Stop(ctx)
+			})
 		},
 	}
 	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:8080", "listen address (HTTP)")
@@ -398,15 +404,24 @@ func demoCmd() *cobra.Command {
 			ctx := context.Background()
 
 			fmt.Println("=== Demo 1: Coherent Chrome 131 profile (local) ===")
-			rep1, _ := scan.Run(ctx, scan.Options{Profile: p, Mode: scan.ModeLocal})
+			rep1, err := scan.Run(ctx, scan.Options{Profile: p, Mode: scan.ModeLocal})
+			if err != nil {
+				return err
+			}
 			_ = report.Write(os.Stdout, rep1, report.FormatText)
 
 			fmt.Println("=== Demo 2: Platform mismatch (mutate) ===")
-			rep2, _ := scan.Run(ctx, scan.Options{Profile: p, Mode: scan.ModeMutate, Mutate: "wrong-platform"})
+			rep2, err := scan.Run(ctx, scan.Options{Profile: p, Mode: scan.ModeMutate, Mutate: "wrong-platform"})
+			if err != nil {
+				return err
+			}
 			_ = report.Write(os.Stdout, rep2, report.FormatText)
 
 			fmt.Println("=== Demo 3: Browser mismatch (mutate) ===")
-			rep3, _ := scan.Run(ctx, scan.Options{Profile: p, Mode: scan.ModeMutate, Mutate: "wrong-browser"})
+			rep3, err := scan.Run(ctx, scan.Options{Profile: p, Mode: scan.ModeMutate, Mutate: "wrong-browser"})
+			if err != nil {
+				return err
+			}
 			_ = report.Write(os.Stdout, rep3, report.FormatText)
 			return nil
 		},
@@ -419,9 +434,18 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.7.1")
+			fmt.Println("coherencelab v1.7.2")
 		},
 	}
+}
+
+func waitForInterrupt(shutdown func(context.Context) error) error {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	<-ch
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return shutdown(ctx)
 }
 
 func defaultProfilesDir() string {

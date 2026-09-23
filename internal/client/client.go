@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	utls "github.com/refraction-networking/utls"
@@ -29,9 +30,9 @@ type Config struct {
 
 // DialResult captures TLS + H2 metadata from the connection.
 type DialResult struct {
-	TLS *signal.TLSObservation
-	H2  *signal.H2Observation
-
+	mu    sync.Mutex
+	TLS   *signal.TLSObservation
+	H2    *signal.H2Observation
 	h2Cap *h2wire.CaptureConn
 }
 
@@ -41,7 +42,9 @@ func (d *DialResult) FinalizeH2() {
 		return
 	}
 	if obs := d.h2Cap.Observation(); obs != nil {
+		d.mu.Lock()
 		d.H2 = obs
+		d.mu.Unlock()
 	}
 }
 
@@ -78,17 +81,19 @@ func BuildTransport(cfg Config) (*http.Transport, *DialResult, error) {
 		}
 
 		state := tlsConn.ConnectionState()
-		result.TLS = &signal.TLSObservation{
-			Version:      tlsfp.VersionString(state.Version),
-			CipherSuite:  tlsfp.CipherSuiteName(state.CipherSuite),
-			ALPN:         state.NegotiatedProtocol,
+		tlsObs := &signal.TLSObservation{
+			Version:       tlsfp.VersionString(state.Version),
+			CipherSuite:   tlsfp.CipherSuiteName(state.CipherSuite),
+			ALPN:          state.NegotiatedProtocol,
 			UTLSClientID: cfg.Profile.TLS.UTLSClientID,
-			SNI:          host,
+			SNI:           host,
 		}
 		if spec, err := utls.UTLSIdToSpec(helloID); err == nil {
-			result.TLS.JA3 = tlsfp.JA3(state.Version, spec.CipherSuites, nil, nil, []uint8{0})
-			result.TLS.JA4 = tlsfp.JA4(state.Version, host, spec.CipherSuites, nil)
+			tlsObs.JA3 = tlsfp.JA3(state.Version, spec.CipherSuites, nil, nil, []uint8{0})
+			tlsObs.JA4 = tlsfp.JA4(state.Version, host, spec.CipherSuites, nil)
 		}
+		result.mu.Lock()
+		result.TLS = tlsObs
 
 		outConn := net.Conn(tlsConn)
 		if state.NegotiatedProtocol == "h2" {
@@ -102,6 +107,7 @@ func BuildTransport(cfg Config) (*http.Transport, *DialResult, error) {
 				result.H2 = h2SettingsFromProfile(cfg.Profile)
 			}
 		}
+		result.mu.Unlock()
 		return outConn, nil
 	}
 

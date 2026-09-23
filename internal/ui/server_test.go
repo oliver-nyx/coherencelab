@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -39,5 +40,18 @@ func TestUIIndex(t *testing.T) {
 	}
 	if rr.Body.Len() < 100 {
 		t.Fatal("empty html")
+	}
+}
+
+func TestUIScanRejectsLiveMode(t *testing.T) {
+	dir := filepath.Join("..", "..", "profiles")
+	srv := New("127.0.0.1:0", dir)
+	body := `{"profile":"chrome-131-win","mode":"live","probe":"https://example.com"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/scan", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	srv.handleScan(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for live mode, got %d body=%s", rr.Code, rr.Body.String())
 	}
 }
