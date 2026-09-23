@@ -394,6 +394,7 @@ coherencelab/
 - [x] QUIC Retry / Version Negotiation lab
 - [x] Live Edge ClientHello fixture (Chrome + Edge bundled)
 - [x] Live Firefox ClientHello fixture (Windows; Safari still needs macOS/iOS)
+- [x] QUIC/H3 golden fingerprints + cross-layer coherence (`lab golden`)
 
 ## Docs
 
@@ -408,6 +409,7 @@ coherencelab/
 - [Lab 08: HTTP/3 PRIORITY_UPDATE](docs/labs/08-http3-priority.md)
 - [Lab 09: QUIC Initial & transport parameters](docs/labs/09-quic-initial.md)
 - [Lab 10: QUIC Version Negotiation & Retry](docs/labs/10-quic-vn-retry.md)
+- [Lab 11: QUIC/H3 golden fingerprints](docs/labs/11-quic-h3-golden.md)
 - [GitHub Action](docs/github-action.md)
 - [Blog: Why your HTTP client gets blocked](docs/blog/identity-coherence.md)
 - [JS runtime probes](docs/adapters/js-runtime.md)

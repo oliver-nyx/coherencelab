@@ -61,4 +61,5 @@ Confirm:
 
 ## Next
 
-Live Safari ClientHello fixture (macOS/iOS — not available on this Windows lab host), or deepen QUIC/H3 golden diffs.
+[Lab 11 — QUIC / H3 golden fingerprints](11-quic-h3-golden.md)
+

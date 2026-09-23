@@ -73,3 +73,4 @@ Side-by-side with H2:
 
 [Lab 09 — QUIC Initial & transport parameters](09-quic-initial.md).
 Live Safari ClientHello still needs macOS/iOS (Firefox live is bundled as `firefox_live`).
+See also [Lab 11 — QUIC / H3 golden fingerprints](11-quic-h3-golden.md).

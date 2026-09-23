@@ -64,4 +64,5 @@ coherencelab lab quic --fixture quic_initial_chrome
 coherencelab lab quic --fixture quic_vn
 coherencelab lab quic --fixture quic_retry
 coherencelab lab quic --fixture quic_tp_minimal --tp
+coherencelab lab golden
 ```

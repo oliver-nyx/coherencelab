@@ -46,6 +46,7 @@ func FormatH3(w io.Writer, s *H3Session) {
 		}
 		fmt.Fprintf(w, "Priority fingerprint field: %s\n", s.PriorityFingerprint())
 	}
+	fmt.Fprintf(w, "\nH3 golden fingerprint:\n  %s\n", H3Fingerprint(s))
 	fmt.Fprintln(w, "\n── Findings ──")
 	for _, f := range s.Findings {
 		fmt.Fprintf(w, "• %s\n", f)

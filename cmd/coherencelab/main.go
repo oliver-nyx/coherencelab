@@ -623,6 +623,7 @@ Packet class is auto-detected unless --header-only / --tp is set.`,
 				}
 				fmt.Fprintln(os.Stdout, "═══ QUIC transport parameters ═══")
 				dissect.FormatTransportParameters(os.Stdout, tps)
+				fmt.Fprintf(os.Stdout, "\nQUIC TP golden fingerprint:\n  %s\n", dissect.TransportFingerprint(tps))
 				return nil
 			}
 			if quicHeaderOnly {
@@ -817,6 +818,101 @@ Packet class is auto-detected unless --header-only / --tp is set.`,
 	corpusCmd.Flags().StringVar(&corpusUTLS, "utls", "", "uTLS parrot id (default: fixture's id)")
 	corpusCmd.Flags().StringVar(&sni, "sni", "example.com", "SNI for parrot synthesis")
 
+	var (
+		goldenQUICRef string
+		goldenQUICVs  string
+		goldenH3Ref   string
+		goldenH3Vs    string
+		goldenCross   bool
+	)
+	goldenCmd := &cobra.Command{
+		Use:   "golden",
+		Short: "Diff QUIC/H3 golden fingerprints (chrome-like vs naive) + cross-layer coherence",
+		Long: `Lab 11 — lock chrome-like QUIC TP and HTTP/3 fingerprints, then score a naive
+stack against them. Default run compares bundled chrome fixtures to minimal
+ones and checks H2/H3/QUIC family coherence.`,
+		Example: `  coherencelab lab golden
+  coherencelab lab golden --quic quic_initial_chrome --vs quic_tp_minimal
+  coherencelab lab golden --h3 h3_chrome --vs-h3 h3_minimal
+  coherencelab lab golden --cross`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ran := false
+			quicRef := goldenQUICRef
+			quicVs := goldenQUICVs
+			h3Ref := goldenH3Ref
+			h3Vs := goldenH3Vs
+			doCross := goldenCross
+			if !doCross && quicRef == "" && h3Ref == "" {
+				quicRef, quicVs = "quic_initial_chrome", "quic_tp_minimal"
+				h3Ref, h3Vs = "h3_chrome", "h3_minimal"
+				doCross = true
+			}
+			if quicRef != "" {
+				if quicVs == "" {
+					return fmt.Errorf("--vs required with --quic")
+				}
+				refTP, notes, err := dissect.LoadTransportParamsForGolden(quicRef)
+				if err != nil {
+					return err
+				}
+				othTP, _, err := dissect.LoadTransportParamsForGolden(quicVs)
+				if err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "quic ref=%s vs=%s (%s)\n", quicRef, quicVs, notes)
+				dissect.FormatGoldenDiff(os.Stdout, dissect.DiffTransportParameters(refTP, othTP))
+				ran = true
+			}
+			if h3Ref != "" {
+				if h3Vs == "" {
+					return fmt.Errorf("--vs-h3 required with --h3")
+				}
+				_, rawA, err := dissect.LoadFixtureBytes(h3Ref)
+				if err != nil {
+					return err
+				}
+				_, rawB, err := dissect.LoadFixtureBytes(h3Vs)
+				if err != nil {
+					return err
+				}
+				a, err := dissect.ParseH3(rawA)
+				if err != nil {
+					return err
+				}
+				b, err := dissect.ParseH3(rawB)
+				if err != nil {
+					return err
+				}
+				if ran {
+					fmt.Fprintln(os.Stdout)
+				}
+				fmt.Fprintf(os.Stderr, "h3 ref=%s vs=%s\n", h3Ref, h3Vs)
+				dissect.FormatGoldenDiff(os.Stdout, dissect.DiffH3Sessions(a, b))
+				ran = true
+			}
+			if doCross {
+				r, err := dissect.AnalyzeChromeFamilyCrossLayer()
+				if err != nil {
+					return err
+				}
+				if ran {
+					fmt.Fprintln(os.Stdout)
+				}
+				dissect.FormatCrossLayer(os.Stdout, r)
+				ran = true
+			}
+			if !ran {
+				return fmt.Errorf("provide --quic/--vs, --h3/--vs-h3, and/or --cross (or no flags for full default)")
+			}
+			return nil
+		},
+	}
+	goldenCmd.Flags().StringVar(&goldenQUICRef, "quic", "", "QUIC Initial or TP fixture (ref)")
+	goldenCmd.Flags().StringVar(&goldenQUICVs, "vs", "", "QUIC Initial or TP fixture to compare")
+	goldenCmd.Flags().StringVar(&goldenH3Ref, "h3", "", "HTTP/3 fixture (ref)")
+	goldenCmd.Flags().StringVar(&goldenH3Vs, "vs-h3", "", "HTTP/3 fixture to compare")
+	goldenCmd.Flags().BoolVar(&goldenCross, "cross", false, "H2/H3/QUIC chrome-family coherence report")
+
 	listCmd := &cobra.Command{
 		Use:   "fixtures",
 		Short: "List bundled testdata/corpus samples",
@@ -833,6 +929,7 @@ Packet class is auto-detected unless --header-only / --tp is set.`,
 			fmt.Println("  coherencelab lab quic --fixture quic_initial_chrome")
 			fmt.Println("  coherencelab lab quic --fixture quic_vn")
 			fmt.Println("  coherencelab lab quic --fixture quic_retry")
+			fmt.Println("  coherencelab lab golden")
 			fmt.Println("  coherencelab lab ingest-hello --bin captured/x.clienthello.bin --name chrome_131")
 			return nil
 		},
@@ -897,6 +994,7 @@ chrome_131_utls.`,
 	cmd.AddCommand(headersCmd)
 	cmd.AddCommand(permCmd)
 	cmd.AddCommand(corpusCmd)
+	cmd.AddCommand(goldenCmd)
 	cmd.AddCommand(listCmd)
 	cmd.AddCommand(ingestCmd)
 	return cmd
@@ -991,7 +1089,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.8.9")
+			fmt.Println("coherencelab v1.8.10")
 		},
 	}
 }

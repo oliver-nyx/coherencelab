@@ -65,4 +65,5 @@ parse with `--header-only`.
 
 ## Next
 
-[Lab 10 — QUIC Version Negotiation & Retry](10-quic-vn-retry.md)
+[Lab 10 — QUIC Version Negotiation & Retry](10-quic-vn-retry.md) ·
+[Lab 11 — QUIC / H3 golden fingerprints](11-quic-h3-golden.md)

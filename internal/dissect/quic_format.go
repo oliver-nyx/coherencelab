@@ -26,6 +26,7 @@ func FormatQUICInitial(w io.Writer, d *DecryptedInitial) {
 	if len(d.Transport) > 0 {
 		fmt.Fprintln(w, "\n── Transport parameters (from ClientHello ext 0x39) ──")
 		FormatTransportParameters(w, d.Transport)
+		fmt.Fprintf(w, "\nQUIC TP golden fingerprint:\n  %s\n", TransportFingerprint(d.Transport))
 	}
 	if d.ClientHello != nil {
 		fmt.Fprintln(w, "\n── Embedded ClientHello (summary) ──")
