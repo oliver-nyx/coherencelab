@@ -23,16 +23,17 @@ This is not a bypass toolkit. It is a place to **read protocol bytes, understand
 ```bash
 go build -o bin/coherencelab ./cmd/coherencelab
 
-# What does Chrome 131's ClientHello actually contain?
-./bin/coherencelab lab clienthello --utls chrome_131
-
-# Compare Firefox
-./bin/coherencelab lab clienthello --utls firefox_133
+# Bundled fixtures — works on a cold clone
+./bin/coherencelab lab fixtures
+./bin/coherencelab lab clienthello --fixture chrome_131
+./bin/coherencelab lab h2 --fixture h2_chrome
+./bin/coherencelab lab corpus --fixture chrome_131 --utls firefox_133
 ```
 
 Read the code while you run it:
 
 - [`internal/dissect/`](internal/dissect/) — raw TLS + HTTP/2 parsers with RE annotations
+- [`testdata/corpus/`](testdata/corpus/) — checked-in wire samples (honestly labeled)
 - [`docs/labs/01-clienthello.md`](docs/labs/01-clienthello.md)
 - [`docs/labs/02-http2-wire.md`](docs/labs/02-http2-wire.md)
 - [`docs/labs/03-hpack-pseudo.md`](docs/labs/03-hpack-pseudo.md)
@@ -337,7 +338,8 @@ coherencelab/
 | ClientHello extension permutation entropy lab | ✓ Complete |
 | CONTINUATION merge before HPACK | ✓ Complete |
 | Capture vs uTLS corpus diff | ✓ Complete |
-| RE labs (`lab clienthello|h2|headers|permute|corpus`) | ✓ Complete |
+| Bundled `testdata/corpus` fixtures + `--fixture` | ✓ Complete |
+| RE labs (`lab clienthello|h2|headers|permute|corpus|fixtures`) | ✓ Complete |
 | 23-rule coherence engine | ✓ Complete |
 | 18 browser profiles | ✓ Complete |
 | Local + mutate + live scan modes | ✓ Complete |
@@ -369,8 +371,9 @@ coherencelab/
 - [x] Extension-permutation entropy lab
 - [x] CONTINUATION merge + HPACK across fragments
 - [x] Real-browser capture vs uTLS corpus diff
+- [x] Packaged fixtures in `testdata/corpus/` + `--fixture`
 - [ ] PRIORITY_UPDATE / RFC 9218 corpus across browser versions
-- [ ] Packaged pcap fixtures in `testdata/corpus/`
+- [ ] Replace uTLS-synth ClientHello fixtures with live browser pcaps
 
 ## Docs
 

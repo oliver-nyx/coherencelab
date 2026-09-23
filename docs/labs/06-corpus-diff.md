@@ -12,20 +12,19 @@ JA3 can match while the extension skeleton disagrees — the report calls that o
 
 ## Exercise
 
-```bash
-# Synthesize a "capture" for the lab (replace with real pcap export):
-./bin/coherencelab lab clienthello --utls chrome_131 > /tmp/report.txt
-# Save raw bytes from Wireshark as chrome.bin, then:
+Cold-clone path (no Wireshark):
 
-./bin/coherencelab lab corpus --bin chrome.bin --utls chrome_131
-./bin/coherencelab lab corpus --bin chrome.bin --utls firefox_133
+```bash
+./bin/coherencelab lab fixtures
+./bin/coherencelab lab corpus --fixture chrome_131 --utls chrome_131
+./bin/coherencelab lab corpus --fixture chrome_131 --utls firefox_133
 ```
 
-Self-check without a pcap (parrot vs itself should score ~100%):
+With your own capture:
 
 ```bash
-# In Go tests: TestCorpusSelfDiffHighScore / TestCorpusChromeVsFirefoxLowScore
-go test ./internal/dissect/ -run Corpus -v
+./bin/coherencelab lab corpus --bin chrome.bin --utls chrome_131
+./bin/coherencelab lab corpus --bin chrome.bin --utls firefox_133
 ```
 
 ## Weighted surfaces

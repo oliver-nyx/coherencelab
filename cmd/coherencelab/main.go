@@ -409,9 +409,11 @@ Read the code — the annotations are the curriculum.`,
 		helloUTLS    string
 		helloHex     string
 		helloBin     string
+		helloFix     string
 		sni          string
 		h2Hex        string
 		h2Bin        string
+		h2Fix        string
 		hpackHex     string
 		hpackBin     string
 		hpackDemo    string
@@ -423,6 +425,7 @@ Read the code — the annotations are the curriculum.`,
 		Use:   "clienthello",
 		Short: "Dissect a TLS ClientHello (file, hex, or synthesized from uTLS)",
 		Example: `  coherencelab lab clienthello --utls chrome_131
+  coherencelab lab clienthello --fixture chrome_131
   coherencelab lab clienthello --profile chrome-131-win
   coherencelab lab clienthello --hex 160301...
   coherencelab lab clienthello --bin capture.bin`,
@@ -430,6 +433,16 @@ Read the code — the annotations are the curriculum.`,
 			var raw []byte
 			var err error
 			switch {
+			case helloFix != "":
+				fx, b, e := dissect.LoadFixtureBytes(helloFix)
+				if e != nil {
+					return e
+				}
+				if fx.Kind != "clienthello" {
+					return fmt.Errorf("fixture %s is kind %s (want clienthello)", fx.Name, fx.Kind)
+				}
+				fmt.Fprintf(os.Stderr, "fixture %s (%s): %s\n", fx.Name, fx.Source, fx.Notes)
+				raw = b
 			case helloBin != "":
 				raw, err = os.ReadFile(helloBin)
 			case helloHex != "":
@@ -443,7 +456,7 @@ Read the code — the annotations are the curriculum.`,
 				}
 				raw, err = dissect.SynthClientHello(p.TLS.UTLSClientID, sni)
 			default:
-				return fmt.Errorf("provide --utls, --profile, --hex, or --bin")
+				return fmt.Errorf("provide --fixture, --utls, --profile, --hex, or --bin")
 			}
 			if err != nil {
 				return err
@@ -458,25 +471,37 @@ Read the code — the annotations are the curriculum.`,
 	}
 	tlsCmd.Flags().StringVar(&helloProfile, "profile", "", "synthesize ClientHello from profile utls_client_id")
 	tlsCmd.Flags().StringVar(&helloUTLS, "utls", "", "synthesize ClientHello from uTLS id (e.g. chrome_131)")
+	tlsCmd.Flags().StringVar(&helloFix, "fixture", "", "bundled testdata/corpus name (e.g. chrome_131)")
 	tlsCmd.Flags().StringVar(&helloHex, "hex", "", "ClientHello as hex (record or bare handshake)")
 	tlsCmd.Flags().StringVar(&helloBin, "bin", "", "path to raw ClientHello bytes")
 	tlsCmd.Flags().StringVar(&sni, "sni", "example.com", "SNI used when synthesizing")
 
 	h2Cmd := &cobra.Command{
 		Use:   "h2",
-		Short: "Dissect HTTP/2 preface + frames from hex or binary",
-		Example: `  coherencelab lab h2 --bin capture.h2
+		Short: "Dissect HTTP/2 preface + frames from hex, binary, or fixture",
+		Example: `  coherencelab lab h2 --fixture h2_chrome
+  coherencelab lab h2 --bin capture.h2
   coherencelab lab h2 --hex 505249202a20485454502f322e30...`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var raw []byte
 			var err error
 			switch {
+			case h2Fix != "":
+				fx, b, e := dissect.LoadFixtureBytes(h2Fix)
+				if e != nil {
+					return e
+				}
+				if fx.Kind != "h2" {
+					return fmt.Errorf("fixture %s is kind %s (want h2)", fx.Name, fx.Kind)
+				}
+				fmt.Fprintf(os.Stderr, "fixture %s (%s): %s\n", fx.Name, fx.Source, fx.Notes)
+				raw = b
 			case h2Bin != "":
 				raw, err = os.ReadFile(h2Bin)
 			case h2Hex != "":
 				raw, err = decodeHex(h2Hex)
 			default:
-				return fmt.Errorf("provide --hex or --bin")
+				return fmt.Errorf("provide --fixture, --hex, or --bin")
 			}
 			if err != nil {
 				return err
@@ -491,6 +516,7 @@ Read the code — the annotations are the curriculum.`,
 	}
 	h2Cmd.Flags().StringVar(&h2Hex, "hex", "", "HTTP/2 bytes as hex")
 	h2Cmd.Flags().StringVar(&h2Bin, "bin", "", "path to raw HTTP/2 bytes")
+	h2Cmd.Flags().StringVar(&h2Fix, "fixture", "", "bundled testdata/corpus name (e.g. h2_chrome)")
 
 	headersCmd := &cobra.Command{
 		Use:   "headers",
@@ -562,48 +588,83 @@ Read the code — the annotations are the curriculum.`,
 	var (
 		corpusBin  string
 		corpusHex  string
+		corpusFix  string
 		corpusUTLS string
 	)
 	corpusCmd := &cobra.Command{
 		Use:   "corpus",
 		Short: "Diff a captured ClientHello against a uTLS parrot (ground truth vs claim)",
-		Example: `  coherencelab lab corpus --bin chrome-capture.bin --utls chrome_131
-  coherencelab lab corpus --bin chrome-capture.bin --utls firefox_133`,
+		Example: `  coherencelab lab corpus --fixture chrome_131 --utls chrome_131
+  coherencelab lab corpus --fixture chrome_131 --utls firefox_133
+  coherencelab lab corpus --bin chrome-capture.bin --utls chrome_131`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if corpusUTLS == "" {
-				return fmt.Errorf("--utls required (parrot id to compare against the capture)")
-			}
 			var raw []byte
 			var err error
+			defaultUTLS := corpusUTLS
 			switch {
+			case corpusFix != "":
+				fx, b, e := dissect.LoadFixtureBytes(corpusFix)
+				if e != nil {
+					return e
+				}
+				if fx.Kind != "clienthello" {
+					return fmt.Errorf("fixture %s is kind %s (want clienthello)", fx.Name, fx.Kind)
+				}
+				fmt.Fprintf(os.Stderr, "fixture %s (%s): %s\n", fx.Name, fx.Source, fx.Notes)
+				raw = b
+				if defaultUTLS == "" {
+					defaultUTLS = fx.UTLSClientID
+				}
 			case corpusBin != "":
 				raw, err = os.ReadFile(corpusBin)
 			case corpusHex != "":
 				raw, err = decodeHex(corpusHex)
 			default:
-				return fmt.Errorf("provide --bin or --hex capture")
+				return fmt.Errorf("provide --fixture, --bin, or --hex capture")
 			}
 			if err != nil {
 				return err
 			}
-			diff, _, _, err := dissect.DiffCapturedVsUTLS(raw, corpusUTLS, sni)
+			if defaultUTLS == "" {
+				return fmt.Errorf("--utls required when not using a clienthello fixture with a default id")
+			}
+			diff, _, _, err := dissect.DiffCapturedVsUTLS(raw, defaultUTLS, sni)
 			if err != nil {
 				return err
 			}
+			fmt.Fprintf(os.Stderr, "parrot utls=%s sni=%s\n", defaultUTLS, sni)
 			dissect.FormatHelloDiff(os.Stdout, diff)
 			return nil
 		},
 	}
 	corpusCmd.Flags().StringVar(&corpusBin, "bin", "", "captured ClientHello bytes")
 	corpusCmd.Flags().StringVar(&corpusHex, "hex", "", "captured ClientHello as hex")
-	corpusCmd.Flags().StringVar(&corpusUTLS, "utls", "", "uTLS parrot id (e.g. chrome_131)")
+	corpusCmd.Flags().StringVar(&corpusFix, "fixture", "", "bundled testdata/corpus name (e.g. chrome_131)")
+	corpusCmd.Flags().StringVar(&corpusUTLS, "utls", "", "uTLS parrot id (default: fixture's id)")
 	corpusCmd.Flags().StringVar(&sni, "sni", "example.com", "SNI for parrot synthesis")
+
+	listCmd := &cobra.Command{
+		Use:   "fixtures",
+		Short: "List bundled testdata/corpus samples",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Printf("%-14s %-12s %-28s %s\n", "NAME", "KIND", "SOURCE", "NOTES")
+			for _, f := range dissect.Catalog {
+				fmt.Printf("%-14s %-12s %-28s %s\n", f.Name, f.Kind, f.Source, f.Notes)
+			}
+			fmt.Println("\nExamples:")
+			fmt.Println("  coherencelab lab clienthello --fixture chrome_131")
+			fmt.Println("  coherencelab lab h2 --fixture h2_chrome")
+			fmt.Println("  coherencelab lab corpus --fixture chrome_131 --utls firefox_133")
+			return nil
+		},
+	}
 
 	cmd.AddCommand(tlsCmd)
 	cmd.AddCommand(h2Cmd)
 	cmd.AddCommand(headersCmd)
 	cmd.AddCommand(permCmd)
 	cmd.AddCommand(corpusCmd)
+	cmd.AddCommand(listCmd)
 	return cmd
 }
 
@@ -696,7 +757,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.8.2")
+			fmt.Println("coherencelab v1.8.3")
 		},
 	}
 }

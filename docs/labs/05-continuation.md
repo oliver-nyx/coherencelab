@@ -12,12 +12,11 @@ state spans the merge. Tools that decode only the first HEADERS payload will:
 
 ## Exercise
 
-Capture a large request (many cookies / Client Hints) or craft a split block:
-
 ```bash
-# After capturing session.h2 that includes CONTINUATION:
-./bin/coherencelab lab h2 --bin session.h2
+./bin/coherencelab lab h2 --fixture h2_chrome
 ```
+
+The `h2_chrome` fixture deliberately splits HPACK across HEADERS + CONTINUATION.
 
 Look for:
 
