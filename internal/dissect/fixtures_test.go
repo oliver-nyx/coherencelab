@@ -43,6 +43,53 @@ func TestLoadFixtureEdgeLive(t *testing.T) {
 	}
 }
 
+func TestLoadFixtureFirefoxLive(t *testing.T) {
+	fx, raw, err := LoadFixtureBytes("firefox_live")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fx.Source != "live-browser" {
+		t.Fatalf("source=%s", fx.Source)
+	}
+	ch, err := ParseClientHello(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ch.SNI != "example.com" {
+		t.Fatalf("SNI=%q", ch.SNI)
+	}
+}
+
+func TestLiveFirefoxVsParrot(t *testing.T) {
+	fx, raw, err := LoadFixtureBytes("firefox_live")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fx.Source != "live-browser" {
+		t.Skip("firefox_live not yet a live capture")
+	}
+	ch, err := ParseClientHello(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sni := ch.SNI
+	if sni == "" {
+		sni = "example.com"
+	}
+	diffFF, _, _, err := DiffCapturedVsUTLS(raw, "firefox_133", sni)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diffChrome, _, _, err := DiffCapturedVsUTLS(raw, "chrome_131", sni)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("live-ff-vs-firefox_133 score=%.1f; vs-chrome_131 score=%.1f", diffFF.Score, diffChrome.Score)
+	if diffChrome.Score >= diffFF.Score {
+		t.Fatalf("chrome parrot scored %.1f >= firefox parrot %.1f — unexpected", diffChrome.Score, diffFF.Score)
+	}
+}
+
 
 func TestLoadFixtureH2ChromeContinuation(t *testing.T) {
 	_, raw, err := LoadFixtureBytes("h2_chrome")

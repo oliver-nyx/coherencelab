@@ -8,8 +8,10 @@ Checked-in wire samples so labs work on a cold clone — **no Wireshark required
 |------|--------|
 | `clienthello-chrome_131.bin` | **live-browser** — real Google Chrome via `coherencelab serve` (Windows) |
 | `clienthello-edge_live.bin` | **live-browser** — real Microsoft Edge via `coherencelab serve` (Windows) |
+| `clienthello-firefox_live.bin` | **live-browser** — real Mozilla Firefox via `coherencelab serve` (Windows; SNI via `network.dns.localDomains`) |
 | `clienthello-chrome_131_utls.bin` | **utls-synth** — `HelloChrome_131` parrot baseline for Lab 06 |
-| `clienthello-firefox_*.bin` / `safari_*.bin` | **utls-synth** (replace with live captures when you have those browsers) |
+| `clienthello-firefox_133.bin` | **utls-synth** — Firefox Auto parrot (compare with `firefox_live`) |
+| `clienthello-safari_*.bin` | **utls-synth** (live Safari needs macOS/iOS) |
 | `h2-chrome-like.bin` | Crafted Chromium-like H2 session (SETTINGS / WINDOW_UPDATE / PRIORITY_UPDATE / CONTINUATION) |
 | `h2-firefox-like.bin` | Crafted Firefox-like H2 session |
 | `h3-chrome-like.bin` / `h3-minimal.bin` | Crafted HTTP/3 control-stream frames |
@@ -24,7 +26,7 @@ Checked-in wire samples so labs work on a cold clone — **no Wireshark required
 go run ./tools/gen_corpus.go
 ```
 
-This **never overwrites** `clienthello-chrome_131.bin` (live). It refreshes `*_utls` / Firefox / Safari / H2 / H3 / QUIC crafted bins.
+This **never overwrites** live bins (`chrome_131`, `edge_live`, `firefox_live`). It refreshes `*_utls` / `firefox_133` / Safari / H2 / H3 / QUIC crafted bins.
 
 ## Capture a live ClientHello
 
@@ -37,6 +39,11 @@ chrome --ignore-certificate-errors \
   https://example.com:8443/probe
 
 coherencelab lab ingest-hello --bin ./captured/probe-*.clienthello.bin --name chrome_131
+
+# Firefox (no --ignore-certificate-errors; ClientHello is written on first peek):
+# profile user.js: network.dns.localDomains = "example.com"
+firefox -headless -profile /tmp/ff-lab "https://example.com:8443/probe"
+coherencelab lab ingest-hello --bin ./captured/probe-*.clienthello.bin --name firefox_live
 ```
 
 Also available: `GET /clienthello` downloads the last captured record.
@@ -46,8 +53,11 @@ Also available: `GET /clienthello` downloads the last captured record.
 ```bash
 coherencelab lab fixtures
 coherencelab lab clienthello --fixture chrome_131          # live
+coherencelab lab clienthello --fixture edge_live           # live Edge
+coherencelab lab clienthello --fixture firefox_live        # live Firefox
 coherencelab lab clienthello --fixture chrome_131_utls     # parrot
 coherencelab lab corpus --fixture chrome_131 --utls chrome_131
+coherencelab lab corpus --fixture firefox_live --utls firefox_133
 coherencelab lab h2 --fixture h2_chrome
 coherencelab lab h3 --fixture h3_chrome
 coherencelab lab quic --fixture quic_initial_chrome

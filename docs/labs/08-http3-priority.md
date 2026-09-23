@@ -71,5 +71,5 @@ Side-by-side with H2:
 
 ## Next
 
-Live Firefox / Safari ClientHello fixtures (Chrome is bundled), or
 [Lab 09 — QUIC Initial & transport parameters](09-quic-initial.md).
+Live Safari ClientHello still needs macOS/iOS (Firefox live is bundled as `firefox_live`).

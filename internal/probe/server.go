@@ -204,9 +204,20 @@ func (s *Server) takeH2(addr string) *signal.H2Observation {
 
 func (s *Server) storeHello(addr string, hello []byte) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.helloByAddr[addr] = append([]byte(nil), hello...)
 	s.lastHello = append([]byte(nil), hello...)
+	dir := s.CaptureDir
+	s.mu.Unlock()
+
+	// Persist as soon as the first TLS record is peeked — even if the browser
+	// aborts after Certificate (Firefox has no --ignore-certificate-errors).
+	if dir != "" && len(hello) > 0 {
+		_ = os.MkdirAll(dir, 0o755)
+		path := filepath.Join(dir, fmt.Sprintf("probe-%d.clienthello.bin", time.Now().UnixNano()))
+		if err := os.WriteFile(path, hello, 0o644); err == nil {
+			log.Printf("wrote ClientHello %d bytes → %s", len(hello), path)
+		}
+	}
 }
 
 func (s *Server) takeHello(addr string) []byte {
@@ -281,13 +292,8 @@ func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
 	if h2 := s.h2FromRequest(r); h2 != nil {
 		obs.H2 = h2
 	}
-	hello := s.helloFromRequest(r)
-	if hello != nil && s.CaptureDir != "" {
-		_ = os.MkdirAll(s.CaptureDir, 0o755)
-		path := filepath.Join(s.CaptureDir, fmt.Sprintf("probe-%d.clienthello.bin", time.Now().UnixNano()))
-		_ = os.WriteFile(path, hello, 0o644)
-		log.Printf("wrote ClientHello %d bytes → %s", len(hello), path)
-	}
+	// ClientHello bytes are persisted in storeHello as soon as the TLS record is
+	// peeked (needed when Firefox aborts on the self-signed cert before /probe).
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

@@ -45,6 +45,21 @@ coherencelab lab ingest-hello --bin ./captured/*.clienthello.bin --name chrome_1
 coherencelab lab corpus --fixture chrome_131 --utls chrome_131
 ```
 
+Firefox has no `--ignore-certificate-errors`. With `--capture-dir`, the server writes
+`*.clienthello.bin` as soon as the first TLS record is peeked (before cert abort).
+Map SNI with a throwaway profile:
+
+```
+user_pref("network.dns.localDomains", "example.com");
+user_pref("network.stricttransportsecurity.preloadlist", false);
+user_pref("security.cert_pinning.enforcement_level", 0);
+```
+
+```bash
+firefox -headless -no-remote -profile /tmp/ff-lab "https://example.com:8443/probe"
+coherencelab lab ingest-hello --bin ./captured/probe-*.clienthello.bin --name firefox_live
+```
+
 `GET /clienthello` also downloads the last captured record.
 
 The draft profile still **guesses** `utls_client_id` from the UA family (and forces `safari_ios_18` for CriOS). Review before production use.

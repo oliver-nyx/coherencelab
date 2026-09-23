@@ -61,4 +61,4 @@ Confirm:
 
 ## Next
 
-Live Firefox / Safari ClientHello fixtures (Edge live may already be bundled).
+Live Safari ClientHello fixture (macOS/iOS — not available on this Windows lab host), or deepen QUIC/H3 golden diffs.

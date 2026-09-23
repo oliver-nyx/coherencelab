@@ -19,11 +19,14 @@ Cold-clone path (bundled **live** Chrome vs parrot):
 ./bin/coherencelab lab corpus --fixture chrome_131 --utls chrome_131
 ./bin/coherencelab lab corpus --fixture chrome_131 --utls firefox_133
 ./bin/coherencelab lab corpus --fixture chrome_131_utls --utls chrome_131
+./bin/coherencelab lab corpus --fixture firefox_live --utls firefox_133
+./bin/coherencelab lab corpus --fixture edge_live --utls chrome_131
 ```
 
 Expect: live Chrome vs `HelloChrome_131` often lands ~50–70% with a **critical**
 `extension_skeleton` miss (ML-KEM hybrids, ALPS variant, GREASE placement).
 Parrot-vs-parrot (`chrome_131_utls`) should score much higher.
+Live Firefox vs `firefox_133` should beat Chrome-parrot on the same capture.
 
 Capture your own:
 

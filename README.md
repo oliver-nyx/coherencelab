@@ -393,7 +393,7 @@ coherencelab/
 - [x] QUIC Initial / transport-parameter dissection lab
 - [x] QUIC Retry / Version Negotiation lab
 - [x] Live Edge ClientHello fixture (Chrome + Edge bundled)
-- [ ] Live Firefox / Safari ClientHello fixtures
+- [x] Live Firefox ClientHello fixture (Windows; Safari still needs macOS/iOS)
 
 ## Docs
 
