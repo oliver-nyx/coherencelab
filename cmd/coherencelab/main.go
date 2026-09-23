@@ -576,19 +576,23 @@ with RFC 9218 H3 types 0xF0700 / 0xF0701.`,
 		quicFix        string
 		quicHeaderOnly bool
 		quicTPOnly     bool
+		quicODCIDHex   string
 	)
 	quicCmd := &cobra.Command{
 		Use:   "quic",
-		Short: "Dissect QUIC Initial packets and transport parameters",
-		Long: `Parse QUICv1 client Initial UDP payloads (RFC 9000/9001):
+		Short: "Dissect QUIC Initial / Retry / Version Negotiation / transport parameters",
+		Long: `Parse QUIC UDP payloads (RFC 9000/9001):
 
-  long header → header protection → AEAD → CRYPTO → ClientHello → TPs
+  Initial  — long header → HP → AEAD (v1 salt) → CRYPTO → ClientHello → TPs
+  Retry    — token + integrity tag (pass --odcid to verify)
+  VN       — version=0 supported-version list (incl. GREASE 0x?a?a?a?a)
+  TP blob  — --tp or fixture kind quic_tp
 
-Initial decryption uses the RFC 9001 salt + DCID. For header-only parses
-(unknown versions / grease), pass --header-only. For a raw TP blob, --tp.`,
+Packet class is auto-detected unless --header-only / --tp is set.`,
 		Example: `  coherencelab lab quic --fixture quic_initial_chrome
-  coherencelab lab quic --fixture quic_tp_minimal --tp
-  coherencelab lab quic --bin capture.udp --header-only`,
+  coherencelab lab quic --fixture quic_vn
+  coherencelab lab quic --fixture quic_retry --odcid 8394c8f03e515708
+  coherencelab lab quic --fixture quic_tp_minimal --tp`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var raw []byte
 			var err error
@@ -629,19 +633,64 @@ Initial decryption uses the RFC 9001 salt + DCID. For header-only parses
 				dissect.FormatQUICLongHeader(os.Stdout, h)
 				return nil
 			}
-			d, err := dissect.DecryptInitial(raw)
-			if err != nil {
-				return err
+
+			class := dissect.DetectQUICPacketClass(raw)
+			// Fixture name hints when class is ambiguous
+			if quicFix == "quic_vn" {
+				class = "version_negotiation"
 			}
-			dissect.FormatQUICInitial(os.Stdout, d)
-			return nil
+			if quicFix == "quic_retry" {
+				class = "retry"
+			}
+
+			switch class {
+			case "version_negotiation":
+				vn, err := dissect.ParseVersionNegotiation(raw)
+				if err != nil {
+					return err
+				}
+				dissect.FormatVersionNegotiation(os.Stdout, vn)
+				return nil
+			case "retry":
+				var odcid []byte
+				if quicODCIDHex != "" {
+					odcid, err = decodeHex(quicODCIDHex)
+					if err != nil {
+						return err
+					}
+				} else if quicFix == "quic_retry" {
+					odcid = dissect.ODCIDFromChromeLikeInitial()
+				}
+				r, err := dissect.ParseRetry(raw, odcid)
+				if err != nil {
+					return err
+				}
+				dissect.FormatRetry(os.Stdout, r)
+				return nil
+			case "initial":
+				d, err := dissect.DecryptInitial(raw)
+				if err != nil {
+					return err
+				}
+				dissect.FormatQUICInitial(os.Stdout, d)
+				return nil
+			default:
+				h, err := dissect.ParseQUICLongHeader(raw)
+				if err != nil {
+					return fmt.Errorf("quic: unsupported class %s: %w", class, err)
+				}
+				fmt.Fprintf(os.Stderr, "class=%s — showing header only\n", class)
+				dissect.FormatQUICLongHeader(os.Stdout, h)
+				return nil
+			}
 		},
 	}
 	quicCmd.Flags().StringVar(&quicHex, "hex", "", "QUIC UDP payload as hex")
 	quicCmd.Flags().StringVar(&quicBin, "bin", "", "path to QUIC UDP payload / TP blob")
-	quicCmd.Flags().StringVar(&quicFix, "fixture", "", "bundled fixture (quic_initial_chrome | quic_tp_minimal)")
+	quicCmd.Flags().StringVar(&quicFix, "fixture", "", "bundled fixture (quic_initial_chrome | quic_vn | quic_retry | quic_tp_minimal)")
 	quicCmd.Flags().BoolVar(&quicHeaderOnly, "header-only", false, "parse long header without decrypt")
 	quicCmd.Flags().BoolVar(&quicTPOnly, "tp", false, "treat input as raw transport_parameters blob")
+	quicCmd.Flags().StringVar(&quicODCIDHex, "odcid", "", "original DCID hex for Retry integrity check")
 
 	headersCmd := &cobra.Command{
 		Use:   "headers",
@@ -782,6 +831,8 @@ Initial decryption uses the RFC 9001 salt + DCID. For header-only parses
 			fmt.Println("  coherencelab lab h2 --fixture h2_chrome")
 			fmt.Println("  coherencelab lab h3 --fixture h3_chrome")
 			fmt.Println("  coherencelab lab quic --fixture quic_initial_chrome")
+			fmt.Println("  coherencelab lab quic --fixture quic_vn")
+			fmt.Println("  coherencelab lab quic --fixture quic_retry")
 			fmt.Println("  coherencelab lab ingest-hello --bin captured/x.clienthello.bin --name chrome_131")
 			return nil
 		},
@@ -940,7 +991,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.8.7")
+			fmt.Println("coherencelab v1.8.8")
 		},
 	}
 }

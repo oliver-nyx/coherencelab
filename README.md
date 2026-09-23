@@ -29,6 +29,7 @@ go build -o bin/coherencelab ./cmd/coherencelab
 ./bin/coherencelab lab h2 --fixture h2_chrome
 ./bin/coherencelab lab h3 --fixture h3_chrome
 ./bin/coherencelab lab quic --fixture quic_initial_chrome
+./bin/coherencelab lab quic --fixture quic_vn
 ./bin/coherencelab lab corpus --fixture chrome_131 --utls firefox_133
 ```
 
@@ -45,6 +46,7 @@ Read the code while you run it:
 - [`docs/labs/07-priority.md`](docs/labs/07-priority.md)
 - [`docs/labs/08-http3-priority.md`](docs/labs/08-http3-priority.md)
 - [`docs/labs/09-quic-initial.md`](docs/labs/09-quic-initial.md)
+- [`docs/labs/10-quic-vn-retry.md`](docs/labs/10-quic-vn-retry.md)
 
 ## Coherence scoring (supporting tool)
 
@@ -341,12 +343,14 @@ coherencelab/
 | HTTP/2 frame dissector (SETTINGS / WINDOW_UPDATE / PRIORITY_UPDATE) | ✓ Complete |
 | HTTP/3 frame dissector (SETTINGS / GREASE / PRIORITY_UPDATE) | ✓ Complete |
 | QUIC Initial decrypt + transport parameters | ✓ Complete |
+| QUIC Version Negotiation + Retry integrity | ✓ Complete |
 | HPACK + pseudo-header order (Akamai field 4) | ✓ Complete |
 | ClientHello extension permutation entropy lab | ✓ Complete |
 | CONTINUATION merge before HPACK | ✓ Complete |
 | Capture vs uTLS corpus diff | ✓ Complete |
 | Bundled `testdata/corpus` fixtures + `--fixture` | ✓ Complete |
 | Live Chrome ClientHello fixture (probe capture) | ✓ Complete |
+| Live Edge ClientHello fixture (probe capture) | ✓ Complete |
 | QUICv1 Initial + TP GREASE lab | ✓ Complete |
 | RFC 9218 PRIORITY_UPDATE + Akamai field 3 | ✓ Complete |
 | HTTP/3 PRIORITY_UPDATE (0xF0700/0xF0701) + GREASE | ✓ Complete |
@@ -387,8 +391,9 @@ coherencelab/
 - [x] HTTP/3 / QUIC PRIORITY_UPDATE lab
 - [x] Replace uTLS-synth ClientHello fixtures with live browser pcaps
 - [x] QUIC Initial / transport-parameter dissection lab
-- [ ] Live Firefox / Safari ClientHello fixtures (Chrome live is bundled)
-- [ ] QUIC Retry / Version Negotiation lab
+- [x] QUIC Retry / Version Negotiation lab
+- [x] Live Edge ClientHello fixture (Chrome + Edge bundled)
+- [ ] Live Firefox / Safari ClientHello fixtures
 
 ## Docs
 
@@ -402,6 +407,7 @@ coherencelab/
 - [Lab 07: RFC 9218 PRIORITY_UPDATE](docs/labs/07-priority.md)
 - [Lab 08: HTTP/3 PRIORITY_UPDATE](docs/labs/08-http3-priority.md)
 - [Lab 09: QUIC Initial & transport parameters](docs/labs/09-quic-initial.md)
+- [Lab 10: QUIC Version Negotiation & Retry](docs/labs/10-quic-vn-retry.md)
 - [GitHub Action](docs/github-action.md)
 - [Blog: Why your HTTP client gets blocked](docs/blog/identity-coherence.md)
 - [JS runtime probes](docs/adapters/js-runtime.md)

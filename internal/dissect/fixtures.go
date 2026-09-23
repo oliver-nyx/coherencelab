@@ -25,6 +25,8 @@ type Fixture struct {
 var Catalog = []Fixture{
 	{Name: "chrome_131", Kind: "clienthello", File: "clienthello-chrome_131.bin", UTLSClientID: "chrome_131",
 		Source: "live-browser", Notes: "Real Google Chrome ClientHello via coherencelab serve (Windows); SNI=example.com"},
+	{Name: "edge_live", Kind: "clienthello", File: "clienthello-edge_live.bin", UTLSClientID: "chrome_131",
+		Source: "live-browser", Notes: "Real Microsoft Edge ClientHello via coherencelab serve (Windows); SNI=example.com; parrot baseline chrome_131"},
 	{Name: "chrome_131_utls", Kind: "clienthello", File: "clienthello-chrome_131_utls.bin", UTLSClientID: "chrome_131",
 		Source: "utls-synth", Notes: "uTLS HelloChrome_131 via SynthClientHello; parrot baseline for Lab 06"},
 	{Name: "firefox_133", Kind: "clienthello", File: "clienthello-firefox_133.bin", UTLSClientID: "firefox_133",
@@ -45,6 +47,10 @@ var Catalog = []Fixture{
 		Source: "crafted", Notes: "QUICv1 protected Initial + CRYPTO ClientHello + TPs (GREASE + grease_quic_bit), padded ≥1200"},
 	{Name: "quic_tp_minimal", Kind: "quic_tp", File: "quic-tp-minimal.bin",
 		Source: "crafted", Notes: "Raw transport_parameters blob without GREASE (naive stack)"},
+	{Name: "quic_vn", Kind: "quic", File: "quic-vn-grease.bin",
+		Source: "crafted", Notes: "Version Negotiation (version=0) advertising QUICv1 + GREASE versions"},
+	{Name: "quic_retry", Kind: "quic", File: "quic-retry.bin",
+		Source: "crafted", Notes: "QUICv1 Retry with valid integrity tag (ODCID=chrome-like Initial DCID)"},
 }
 
 // CorpusDir resolves testdata/corpus relative to this package or cwd.

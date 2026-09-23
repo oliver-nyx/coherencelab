@@ -65,5 +65,4 @@ parse with `--header-only`.
 
 ## Next
 
-Live Firefox / Safari ClientHello fixtures, or dig into Retry / Version
-Negotiation packets.
+[Lab 10 — QUIC Version Negotiation & Retry](10-quic-vn-retry.md)

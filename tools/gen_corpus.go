@@ -91,6 +91,19 @@ func main() {
 	tpPath := filepath.Join(dir, "quic-tp-minimal.bin")
 	_ = os.WriteFile(tpPath, tpMin, 0o644)
 	fmt.Println("wrote", tpPath, len(tpMin), "bytes")
+
+	vn := dissect.CraftVNChromeLike()
+	vnPath := filepath.Join(dir, "quic-vn-grease.bin")
+	_ = os.WriteFile(vnPath, vn, 0o644)
+	fmt.Println("wrote", vnPath, len(vn), "bytes")
+
+	retry, err := dissect.CraftRetryChromeLike()
+	if err != nil {
+		panic(err)
+	}
+	retryPath := filepath.Join(dir, "quic-retry.bin")
+	_ = os.WriteFile(retryPath, retry, 0o644)
+	fmt.Println("wrote", retryPath, len(retry), "bytes")
 }
 
 func craftH3ChromeLike() []byte {

@@ -26,12 +26,12 @@ func TestLoadFixtureChromeHello(t *testing.T) {
 	}
 }
 
-func TestLoadFixtureChromeUTLS(t *testing.T) {
-	fx, raw, err := LoadFixtureBytes("chrome_131_utls")
+func TestLoadFixtureEdgeLive(t *testing.T) {
+	fx, raw, err := LoadFixtureBytes("edge_live")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fx.Source != "utls-synth" {
+	if fx.Source != "live-browser" {
 		t.Fatalf("source=%s", fx.Source)
 	}
 	ch, err := ParseClientHello(raw)
@@ -42,6 +42,7 @@ func TestLoadFixtureChromeUTLS(t *testing.T) {
 		t.Fatalf("SNI=%q", ch.SNI)
 	}
 }
+
 
 func TestLoadFixtureH2ChromeContinuation(t *testing.T) {
 	_, raw, err := LoadFixtureBytes("h2_chrome")

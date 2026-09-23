@@ -68,3 +68,43 @@ func FormatQUICLongHeader(w io.Writer, h *QUICLongHeader) {
 	}
 	fmt.Fprintln(w, "Tip: use without --header-only to decrypt QUICv1 Initials (RFC 9001 salt).")
 }
+
+// FormatVersionNegotiation writes a VN dissection report.
+func FormatVersionNegotiation(w io.Writer, vn *VersionNegotiation) {
+	fmt.Fprintln(w, "═══ QUIC Version Negotiation ═══")
+	fmt.Fprintf(w, "First byte: 0x%02x  version=0x00000000\n", vn.FirstByte)
+	fmt.Fprintf(w, "DCID (%d): %x\n", len(vn.DCID), vn.DCID)
+	fmt.Fprintf(w, "SCID (%d): %x\n", len(vn.SCID), vn.SCID)
+	fmt.Fprintln(w, "\n── Supported versions ──")
+	for i, v := range vn.Versions {
+		fmt.Fprintf(w, "%2d. %s\n", i+1, formatVersion(v))
+	}
+	fmt.Fprintln(w, "\n── Findings ──")
+	for _, f := range vn.Findings {
+		fmt.Fprintf(w, "• %s\n", f)
+	}
+}
+
+// FormatRetry writes a Retry dissection report.
+func FormatRetry(w io.Writer, r *RetryPacket) {
+	fmt.Fprintln(w, "═══ QUIC Retry ═══")
+	h := r.Header
+	fmt.Fprintf(w, "Version: 0x%08x  first=0x%02x\n", h.Version, h.FirstByte)
+	fmt.Fprintf(w, "DCID (%d): %x  (echo of client SCID)\n", len(h.DCID), h.DCID)
+	fmt.Fprintf(w, "SCID (%d): %x  (server-chosen → client's next DCID)\n", len(h.SCID), h.SCID)
+	fmt.Fprintf(w, "Retry Token: %d bytes  %x\n", len(r.RetryToken), r.RetryToken)
+	fmt.Fprintf(w, "Integrity Tag: %x\n", r.IntegrityTag)
+	if r.TagValid != nil {
+		if *r.TagValid {
+			fmt.Fprintln(w, "Tag check: VALID")
+		} else {
+			fmt.Fprintln(w, "Tag check: INVALID")
+		}
+	} else {
+		fmt.Fprintln(w, "Tag check: skipped (pass --odcid to verify)")
+	}
+	fmt.Fprintln(w, "\n── Findings ──")
+	for _, f := range r.Findings {
+		fmt.Fprintf(w, "• %s\n", f)
+	}
+}
