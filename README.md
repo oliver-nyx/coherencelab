@@ -343,6 +343,7 @@ coherencelab/
 | CONTINUATION merge before HPACK | ✓ Complete |
 | Capture vs uTLS corpus diff | ✓ Complete |
 | Bundled `testdata/corpus` fixtures + `--fixture` | ✓ Complete |
+| Live Chrome ClientHello fixture (probe capture) | ✓ Complete |
 | RFC 9218 PRIORITY_UPDATE + Akamai field 3 | ✓ Complete |
 | HTTP/3 PRIORITY_UPDATE (0xF0700/0xF0701) + GREASE | ✓ Complete |
 | RE labs (`lab …` through H3 priority / fixtures) | ✓ Complete |
@@ -380,8 +381,9 @@ coherencelab/
 - [x] Packaged fixtures in `testdata/corpus/` + `--fixture`
 - [x] PRIORITY_UPDATE / RFC 9218 (Akamai field 3)
 - [x] HTTP/3 / QUIC PRIORITY_UPDATE lab
-- [ ] Replace uTLS-synth ClientHello fixtures with live browser pcaps
+- [x] Replace uTLS-synth ClientHello fixtures with live browser pcaps
 - [ ] QUIC Initial / transport-parameter dissection lab
+- [ ] Live Firefox / Safari ClientHello fixtures (Chrome live is bundled)
 
 ## Docs
 

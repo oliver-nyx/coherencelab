@@ -1,5 +1,7 @@
 /bin/
 /dist/
+/captured/
+/captured-live/
 *.exe
 *.test
 *.out

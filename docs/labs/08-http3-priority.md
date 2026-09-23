@@ -71,5 +71,5 @@ Side-by-side with H2:
 
 ## Next
 
-Replace uTLS-synth ClientHello fixtures with live browser pcaps, or dig into
-QUIC transport parameters / TLS-in-CRYPTO for the Initial flight.
+Live Firefox / Safari ClientHello fixtures (Chrome is bundled), or
+[QUIC Initial / transport-parameter dissection](../README.md#roadmap).

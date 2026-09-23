@@ -4,7 +4,7 @@
 
 The RE workflow that separates serious work from JA3 screenshots:
 
-1. Capture a **real** ClientHello (browser → your probe / Wireshark).
+1. Capture a **real** ClientHello (browser → `coherencelab serve`).
 2. Synthesize what your **claimed** stack emits (`--utls chrome_131`).
 3. Diff weighted surfaces: skeleton, ALPS, ECH, ciphers, groups, JA3.
 
@@ -12,19 +12,26 @@ JA3 can match while the extension skeleton disagrees — the report calls that o
 
 ## Exercise
 
-Cold-clone path (no Wireshark):
+Cold-clone path (bundled **live** Chrome vs parrot):
 
 ```bash
 ./bin/coherencelab lab fixtures
 ./bin/coherencelab lab corpus --fixture chrome_131 --utls chrome_131
 ./bin/coherencelab lab corpus --fixture chrome_131 --utls firefox_133
+./bin/coherencelab lab corpus --fixture chrome_131_utls --utls chrome_131
 ```
 
-With your own capture:
+Expect: live Chrome vs `HelloChrome_131` often lands ~50–70% with a **critical**
+`extension_skeleton` miss (ML-KEM hybrids, ALPS variant, GREASE placement).
+Parrot-vs-parrot (`chrome_131_utls`) should score much higher.
+
+Capture your own:
 
 ```bash
-./bin/coherencelab lab corpus --bin chrome.bin --utls chrome_131
-./bin/coherencelab lab corpus --bin chrome.bin --utls firefox_133
+coherencelab serve --capture-dir ./captured
+# Chrome → https://127.0.0.1:8443/probe
+coherencelab lab ingest-hello --bin ./captured/probe-*.clienthello.bin --name chrome_131
+coherencelab lab corpus --fixture chrome_131 --utls chrome_131
 ```
 
 ## Weighted surfaces

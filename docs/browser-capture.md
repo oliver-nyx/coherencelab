@@ -33,11 +33,21 @@ coherencelab profiles validate --profiles profiles
 | Layer | Source |
 |-------|--------|
 | User-Agent, Client Hints, Accept-* | HTTP request headers |
-| HTTP/2 SETTINGS | Wire capture (when ALPN=h2) |
+| HTTP/2 SETTINGS | Wire capture when ALPN negotiates `h2` (serve currently prefers `http/1.1` so ClientHello capture is reliable across Chrome builds) |
 | TLS ALPN / version | Connection state |
+| **TLS ClientHello (raw record)** | Peeked before handshake → `*.clienthello.bin` when `--capture-dir` is set |
 | `navigator.*`, WebGL vendor/renderer | Page JavaScript |
 
-TLS ClientHello (JA3 / uTLS preset) cannot be read from page JS. The draft profile **guesses** `utls_client_id` from the UA family (and forces `safari_ios_18` for CriOS). Review before production use.
+Raw ClientHello bytes are written next to the JSON/YAML capture. Ingest into the lab corpus:
+
+```bash
+coherencelab lab ingest-hello --bin ./captured/*.clienthello.bin --name chrome_131
+coherencelab lab corpus --fixture chrome_131 --utls chrome_131
+```
+
+`GET /clienthello` also downloads the last captured record.
+
+The draft profile still **guesses** `utls_client_id` from the UA family (and forces `safari_ios_18` for CriOS). Review before production use.
 
 ## Offline path (unchanged)
 

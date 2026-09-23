@@ -9,10 +9,10 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
-
-	utls "github.com/refraction-networking/utls"
 
 	"github.com/oliver-nyx/coherencelab/internal/capture"
 	"github.com/oliver-nyx/coherencelab/internal/h2wire"
@@ -34,21 +34,24 @@ type Observation struct {
 // Server is a TLS probe server that captures client identity signals.
 type Server struct {
 	Addr        string
-	CaptureDir  string // if set, /api/capture writes JSON + profile YAML here
+	CaptureDir  string // if set, /api/capture writes JSON + profile YAML + ClientHello.bin here
 	mu          sync.RWMutex
 	logs        []Observation
 	maxLogs     int
 	h2ByAddr    map[string]*signal.H2Observation
+	helloByAddr map[string][]byte
 	lastCapture *capture.Input
+	lastHello   []byte
 	server      *http.Server
 }
 
 // New creates a probe server.
 func New(addr string) *Server {
 	return &Server{
-		Addr:     addr,
-		maxLogs:  200,
-		h2ByAddr: make(map[string]*signal.H2Observation),
+		Addr:        addr,
+		maxLogs:     200,
+		h2ByAddr:    make(map[string]*signal.H2Observation),
+		helloByAddr: make(map[string][]byte),
 	}
 }
 
@@ -59,6 +62,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/observations", s.handleObservations)
 	mux.HandleFunc("/capture", s.handleCapturePage)
 	mux.HandleFunc("/api/capture", s.handleCaptureAPI)
+	mux.HandleFunc("/clienthello", s.handleClientHello)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
@@ -76,15 +80,20 @@ func (s *Server) Start() error {
 		return fmt.Errorf("listen: %w", err)
 	}
 
-	tlsLn := utls.NewListener(ln, &utls.Config{
-		GetCertificate: func(*utls.ClientHelloInfo) (*utls.Certificate, error) {
-			cert, err := generateSelfSigned()
-			if err != nil {
-				return nil, err
-			}
-			return cert, nil
-		},
-		NextProtos: []string{"h2", "http/1.1"},
+	// Capture raw ClientHello on the TCP conn before TLS consumes it.
+	rawLn := &helloCaptureListener{Listener: ln, srv: s}
+
+	// Use stdlib crypto/tls for the server stack so modern Chrome/Firefox can
+	// complete the handshake. uTLS remains a client/parrot concern — here we
+	// only need a compatible server that lets us observe the ClientHello.
+	tlsCert, err := generateSelfSignedX509()
+	if err != nil {
+		return fmt.Errorf("tls cert: %w", err)
+	}
+	tlsLn := tls.NewListener(rawLn, &tls.Config{
+		Certificates: []tls.Certificate{*tlsCert},
+		NextProtos:   []string{"http/1.1"}, // http/1.1-only: reliable ClientHello capture from browsers (h2 wrapper can abort some Chrome builds)
+		MinVersion:   tls.VersionTLS12,
 	})
 
 	s.server = &http.Server{
@@ -104,6 +113,50 @@ func (s *Server) Start() error {
 }
 
 type connContextKey struct{}
+
+// helloCaptureListener wraps Accept to record the first TLS record per conn.
+type helloCaptureListener struct {
+	net.Listener
+	srv *Server
+}
+
+func (l *helloCaptureListener) Accept() (net.Conn, error) {
+	conn, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	return &helloTrackedConn{
+		HelloCaptureConn: NewHelloCaptureConn(conn),
+		srv:              l.srv,
+	}, nil
+}
+
+type helloTrackedConn struct {
+	*HelloCaptureConn
+	srv     *Server
+	stored  bool
+	storeMu sync.Mutex
+}
+
+func (c *helloTrackedConn) Read(p []byte) (int, error) {
+	n, err := c.HelloCaptureConn.Read(p)
+	c.maybeStore()
+	return n, err
+}
+
+func (c *helloTrackedConn) maybeStore() {
+	c.storeMu.Lock()
+	defer c.storeMu.Unlock()
+	if c.stored {
+		return
+	}
+	hello := c.ClientHello()
+	if hello == nil {
+		return
+	}
+	c.stored = true
+	c.srv.storeHello(c.RemoteAddr().String(), hello)
+}
 
 type h2CaptureListener struct {
 	net.Listener
@@ -147,6 +200,34 @@ func (s *Server) takeH2(addr string) *signal.H2Observation {
 	obs := s.h2ByAddr[addr]
 	delete(s.h2ByAddr, addr)
 	return obs
+}
+
+func (s *Server) storeHello(addr string, hello []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.helloByAddr[addr] = append([]byte(nil), hello...)
+	s.lastHello = append([]byte(nil), hello...)
+}
+
+func (s *Server) takeHello(addr string) []byte {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	hello := s.helloByAddr[addr]
+	delete(s.helloByAddr, addr)
+	if hello == nil {
+		return nil
+	}
+	return append([]byte(nil), hello...)
+}
+
+// LastClientHello returns the most recently captured ClientHello record.
+func (s *Server) LastClientHello() []byte {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.lastHello == nil {
+		return nil
+	}
+	return append([]byte(nil), s.lastHello...)
 }
 
 // Stop gracefully shuts down the server.
@@ -200,6 +281,13 @@ func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
 	if h2 := s.h2FromRequest(r); h2 != nil {
 		obs.H2 = h2
 	}
+	hello := s.helloFromRequest(r)
+	if hello != nil && s.CaptureDir != "" {
+		_ = os.MkdirAll(s.CaptureDir, 0o755)
+		path := filepath.Join(s.CaptureDir, fmt.Sprintf("probe-%d.clienthello.bin", time.Now().UnixNano()))
+		_ = os.WriteFile(path, hello, 0o644)
+		log.Printf("wrote ClientHello %d bytes → %s", len(hello), path)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -218,6 +306,25 @@ func (s *Server) handleObservations(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(s.Observations())
+}
+
+func (s *Server) handleClientHello(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	hello := s.helloFromRequest(r)
+	if hello == nil {
+		hello = s.LastClientHello()
+	}
+	if hello == nil {
+		http.Error(w, "no ClientHello captured yet — hit /probe or /capture from a browser first", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", `attachment; filename="clienthello.bin"`)
+	w.Header().Set("X-ClientHello-Bytes", fmt.Sprintf("%d", len(hello)))
+	_, _ = w.Write(hello)
 }
 
 func extractHeaderOrder(r *http.Request) []string {

@@ -14,7 +14,7 @@ func main() {
 	dir := "testdata/corpus"
 	_ = os.MkdirAll(dir, 0o755)
 	hellos := []struct{ id, file string }{
-		{"chrome_131", "clienthello-chrome_131.bin"},
+		{"chrome_131", "clienthello-chrome_131_utls.bin"}, // parrot baseline — never overwrite live chrome_131
 		{"firefox_133", "clienthello-firefox_133.bin"},
 		{"safari_18", "clienthello-safari_18.bin"},
 		{"ios_14", "clienthello-safari_ios.bin"},

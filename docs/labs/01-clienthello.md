@@ -12,7 +12,12 @@
 
 ```bash
 go build -o bin/coherencelab ./cmd/coherencelab
-./bin/coherencelab lab clienthello --utls chrome_131
+
+# Live Chrome capture (bundled)
+./bin/coherencelab lab clienthello --fixture chrome_131
+
+# uTLS parrot baseline
+./bin/coherencelab lab clienthello --fixture chrome_131_utls
 ./bin/coherencelab lab clienthello --utls firefox_133
 ```
 
@@ -24,27 +29,23 @@ Compare the two reports. You should be able to answer, from the dump alone:
 4. Why is ALPS a Chromium tell?
 5. What does ECH presence/absence buy a detector even when SNI is visible?
 
-## What high-level RE looks for in this code
-
-- **First-principles parse** — record layer → handshake header → body → extensions in wire order.
-- **GREASE as a first-class citizen** — `IsGREASE16` follows draft-ietf-tls-grease; annotations explain the dual use (ignore for stable hashes, keep for entropy).
-- **Extension order preserved** — order *is* the fingerprint for modern Chrome.
-- **Honest JA4** — labeled JA4-inspired; the code comments warn against treating it as FoxIO-canonical without vector tests.
-- **`supported_versions` length prefix** — 1-byte vector length per RFC 8446 (a common parser footgun).
-
 ## Capture your own
 
 ```bash
-# Wireshark / tcpdump → export ClientHello record as raw bytes
-./bin/coherencelab lab clienthello --bin clienthello.bin
+coherencelab serve --addr 127.0.0.1:8443 --capture-dir ./captured
+# open https://127.0.0.1:8443/probe in Chrome (accept self-signed cert)
+coherencelab lab ingest-hello --bin ./captured/probe-*.clienthello.bin --name chrome_131
+coherencelab lab clienthello --fixture chrome_131
 ```
 
-Or paste hex:
+Or Wireshark / hex:
 
 ```bash
+./bin/coherencelab lab clienthello --bin clienthello.bin
 ./bin/coherencelab lab clienthello --hex 160301...
 ```
 
 ## Next
 
-[Lab 02 — HTTP/2 wire dissection](02-http2-wire.md)
+[Lab 02 — HTTP/2 wire dissection](02-http2-wire.md) ·
+[Lab 06 — Capture vs uTLS corpus diff](06-corpus-diff.md)

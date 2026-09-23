@@ -16,6 +16,28 @@ func TestLoadFixtureChromeHello(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if fx.Source == "live-browser" {
+		if ch.SNI == "" {
+			t.Fatal("live fixture missing SNI")
+		}
+		t.Logf("live chrome SNI=%q source=%s", ch.SNI, fx.Source)
+	} else if ch.SNI != "example.com" {
+		t.Fatalf("SNI=%q", ch.SNI)
+	}
+}
+
+func TestLoadFixtureChromeUTLS(t *testing.T) {
+	fx, raw, err := LoadFixtureBytes("chrome_131_utls")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fx.Source != "utls-synth" {
+		t.Fatalf("source=%s", fx.Source)
+	}
+	ch, err := ParseClientHello(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if ch.SNI != "example.com" {
 		t.Fatalf("SNI=%q", ch.SNI)
 	}
@@ -45,7 +67,8 @@ func TestLoadFixtureH2ChromeContinuation(t *testing.T) {
 }
 
 func TestCorpusFixtureVsMatchingParrot(t *testing.T) {
-	_, raw, err := LoadFixtureBytes("chrome_131")
+	// Parrot-vs-parrot: synth fixture must agree with the same uTLS id.
+	_, raw, err := LoadFixtureBytes("chrome_131_utls")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,12 +76,40 @@ func TestCorpusFixtureVsMatchingParrot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Same uTLS id that generated the fixture — should be very high.
-	// GREASE permutation may still move skeleton across runs.
 	if diff.Score < 50 {
 		t.Fatalf("expected decent agreement with matching parrot, score=%.1f diffs=%+v", diff.Score, diff.Diffs)
 	}
-	t.Logf("score=%.1f matches=%v", diff.Score, diff.Matches)
+	t.Logf("utls-vs-utls score=%.1f matches=%v", diff.Score, diff.Matches)
+}
+
+func TestLiveChromeVsParrot(t *testing.T) {
+	fx, raw, err := LoadFixtureBytes("chrome_131")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fx.Source != "live-browser" {
+		t.Skip("chrome_131 not yet a live capture")
+	}
+	ch, err := ParseClientHello(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sni := ch.SNI
+	if sni == "" {
+		sni = "example.com"
+	}
+	diff, _, _, err := DiffCapturedVsUTLS(raw, "chrome_131", sni)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("live-vs-utls score=%.1f diffs=%d matches=%v", diff.Score, len(diff.Diffs), diff.Matches)
+	diffFF, _, _, err := DiffCapturedVsUTLS(raw, "firefox_133", sni)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diffFF.Score >= diff.Score {
+		t.Fatalf("firefox parrot scored %.1f >= chrome parrot %.1f — unexpected", diffFF.Score, diff.Score)
+	}
 }
 
 func TestCorpusFixtureVsWrongParrot(t *testing.T) {
@@ -66,7 +117,12 @@ func TestCorpusFixtureVsWrongParrot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	diff, _, _, err := DiffCapturedVsUTLS(raw, "firefox_133", "example.com")
+	ch, _ := ParseClientHello(raw)
+	sni := "example.com"
+	if ch != nil && ch.SNI != "" {
+		sni = ch.SNI
+	}
+	diff, _, _, err := DiffCapturedVsUTLS(raw, "firefox_133", sni)
 	if err != nil {
 		t.Fatal(err)
 	}

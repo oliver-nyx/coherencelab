@@ -20,17 +20,19 @@ type Fixture struct {
 }
 
 // Catalog is the honest inventory of bundled fixtures.
-// All ClientHello binaries are currently uTLS-synthesized (not live browser
-// pcaps). Labels say so — replacing them with real captures is encouraged.
+// ClientHello sources are labeled: live-browser (real Chrome via probe) or
+// utls-synth (impersonator output). gen_corpus never overwrites live bins.
 var Catalog = []Fixture{
 	{Name: "chrome_131", Kind: "clienthello", File: "clienthello-chrome_131.bin", UTLSClientID: "chrome_131",
-		Source: "utls-synth", Notes: "uTLS HelloChrome_131 via SynthClientHello; SNI=example.com"},
+		Source: "live-browser", Notes: "Real Google Chrome ClientHello via coherencelab serve (Windows); SNI=example.com"},
+	{Name: "chrome_131_utls", Kind: "clienthello", File: "clienthello-chrome_131_utls.bin", UTLSClientID: "chrome_131",
+		Source: "utls-synth", Notes: "uTLS HelloChrome_131 via SynthClientHello; parrot baseline for Lab 06"},
 	{Name: "firefox_133", Kind: "clienthello", File: "clienthello-firefox_133.bin", UTLSClientID: "firefox_133",
-		Source: "utls-synth", Notes: "uTLS Firefox Auto parrot; SNI=example.com"},
+		Source: "utls-synth", Notes: "uTLS Firefox Auto parrot; SNI=example.com (replace with live capture when available)"},
 	{Name: "safari_18", Kind: "clienthello", File: "clienthello-safari_18.bin", UTLSClientID: "safari_18",
-		Source: "utls-synth", Notes: "uTLS Safari Auto parrot; SNI=example.com"},
+		Source: "utls-synth", Notes: "uTLS Safari Auto parrot; SNI=example.com (replace with live capture when available)"},
 	{Name: "safari_ios", Kind: "clienthello", File: "clienthello-safari_ios.bin", UTLSClientID: "ios_14",
-		Source: "utls-synth", Notes: "uTLS iOS Auto parrot; SNI=example.com"},
+		Source: "utls-synth", Notes: "uTLS iOS Auto parrot; SNI=example.com (replace with live capture when available)"},
 	{Name: "h2_chrome", Kind: "h2", File: "h2-chrome-like.bin",
 		Source: "crafted", Notes: "SETTINGS(+NO_RFC7540_PRIORITIES)+WINDOW_UPDATE+PRIORITY_UPDATE(u=0,i)+HEADERS/CONTINUATION m,a,s,p"},
 	{Name: "h2_firefox", Kind: "h2", File: "h2-firefox-like.bin",

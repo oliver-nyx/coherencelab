@@ -20,12 +20,14 @@ var captureHTML []byte
 
 // CaptureResult is returned after a successful browser capture.
 type CaptureResult struct {
-	InputPath   string `json:"input_path,omitempty"`
-	ProfilePath string `json:"profile_path,omitempty"`
-	ProfileID   string `json:"profile_id"`
-	Browser     string `json:"browser"`
-	Platform    string `json:"platform"`
-	Version     string `json:"version"`
+	InputPath        string `json:"input_path,omitempty"`
+	ProfilePath      string `json:"profile_path,omitempty"`
+	ClientHelloPath  string `json:"clienthello_path,omitempty"`
+	ClientHelloBytes int    `json:"clienthello_bytes,omitempty"`
+	ProfileID        string `json:"profile_id"`
+	Browser          string `json:"browser"`
+	Platform         string `json:"platform"`
+	Version          string `json:"version"`
 }
 
 func (s *Server) handleCapturePage(w http.ResponseWriter, r *http.Request) {
@@ -79,11 +81,16 @@ func (s *Server) handleCaptureAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	hello := s.helloFromRequest(r)
+
 	result := CaptureResult{
 		ProfileID: p.ID,
 		Browser:   p.Browser,
 		Platform:  p.Platform,
 		Version:   p.Version,
+	}
+	if hello != nil {
+		result.ClientHelloBytes = len(hello)
 	}
 
 	if s.CaptureDir != "" {
@@ -111,6 +118,15 @@ func (s *Server) handleCaptureAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		result.InputPath = inputPath
 		result.ProfilePath = profilePath
+
+		if hello != nil {
+			helloPath := filepath.Join(s.CaptureDir, base+".clienthello.bin")
+			if err := os.WriteFile(helloPath, hello, 0o644); err != nil {
+				writeJSONError(w, http.StatusInternalServerError, "write clienthello: "+err.Error())
+				return
+			}
+			result.ClientHelloPath = helloPath
+		}
 	}
 
 	s.mu.Lock()
@@ -148,6 +164,14 @@ func (s *Server) h2FromRequest(r *http.Request) *signal.H2Observation {
 		}
 	}
 	return nil
+}
+
+func (s *Server) helloFromRequest(r *http.Request) []byte {
+	if hello := s.takeHello(r.RemoteAddr); hello != nil {
+		return hello
+	}
+	// Fallback: most recent hello on this process (same browser session).
+	return s.LastClientHello()
 }
 
 // LastCapture returns the most recent browser capture input.

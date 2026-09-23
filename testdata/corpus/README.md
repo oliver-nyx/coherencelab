@@ -6,27 +6,43 @@ Checked-in wire samples so labs work on a cold clone — **no Wireshark required
 
 | File | Source |
 |------|--------|
-| `clienthello-*.bin` | **uTLS-synthesized** via `SynthClientHello` (not a live browser pcap) |
-| `h2-chrome-like.bin` | Crafted Chromium-like session: SETTINGS (+`NO_RFC7540_PRIORITIES`), WINDOW_UPDATE, **PRIORITY_UPDATE** `u=0, i`, HEADERS/**CONTINUATION** |
-| `h2-firefox-like.bin` | Crafted Firefox-like SETTINGS + `m,p,a,s` HEADERS (no EPS) |
-| `h3-chrome-like.bin` | Crafted H3 control stream: SETTINGS(+GREASE)+GREASE frame+**PRIORITY_UPDATE 0xF0700** `u=0, i` |
-| `h3-minimal.bin` | Crafted H3 SETTINGS only (no GREASE / no PRIORITY_UPDATE) |
+| `clienthello-chrome_131.bin` | **live-browser** — real Google Chrome via `coherencelab serve` (Windows) |
+| `clienthello-chrome_131_utls.bin` | **utls-synth** — `HelloChrome_131` parrot baseline for Lab 06 |
+| `clienthello-firefox_*.bin` / `safari_*.bin` | **utls-synth** (replace with live captures when you have those browsers) |
+| `h2-chrome-like.bin` | Crafted Chromium-like H2 session (SETTINGS / WINDOW_UPDATE / PRIORITY_UPDATE / CONTINUATION) |
+| `h2-firefox-like.bin` | Crafted Firefox-like H2 session |
+| `h3-chrome-like.bin` / `h3-minimal.bin` | Crafted HTTP/3 control-stream frames |
 
-Replace ClientHello bins with real browser captures when you have them; keep this README accurate.
-
-## Regenerate
+## Regenerate synth fixtures
 
 ```bash
 go run ./tools/gen_corpus.go
 ```
 
+This **never overwrites** `clienthello-chrome_131.bin` (live). It refreshes `*_utls` / Firefox / Safari / H2 / H3 crafted bins.
+
+## Capture a live ClientHello
+
+```bash
+coherencelab serve --addr 127.0.0.1:8443 --capture-dir ./captured
+
+# Real Chrome (map SNI to local probe):
+chrome --ignore-certificate-errors \
+  --host-resolver-rules="MAP example.com 127.0.0.1" \
+  https://example.com:8443/probe
+
+coherencelab lab ingest-hello --bin ./captured/probe-*.clienthello.bin --name chrome_131
+```
+
+Also available: `GET /clienthello` downloads the last captured record.
+
 ## Use
 
 ```bash
 coherencelab lab fixtures
-coherencelab lab clienthello --fixture chrome_131
+coherencelab lab clienthello --fixture chrome_131          # live
+coherencelab lab clienthello --fixture chrome_131_utls     # parrot
+coherencelab lab corpus --fixture chrome_131 --utls chrome_131
 coherencelab lab h2 --fixture h2_chrome
 coherencelab lab h3 --fixture h3_chrome
-coherencelab lab corpus --fixture chrome_131 --utls chrome_131
-coherencelab lab corpus --fixture chrome_131 --utls firefox_133
 ```

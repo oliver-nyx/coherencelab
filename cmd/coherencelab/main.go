@@ -333,8 +333,9 @@ func serveCmd() *cobra.Command {
 		Long: `Starts a local HTTPS server for live probes and real-browser profile capture.
 
   GET  /capture       — open in Chrome/Firefox/Safari to auto-capture a profile
-  POST /api/capture   — receive JS runtime + write YAML (when --capture-dir is set)
-  GET  /probe         — live scan target
+  POST /api/capture   — receive JS runtime + write YAML + ClientHello.bin (when --capture-dir is set)
+  GET  /probe         — live scan target (also writes ClientHello.bin when --capture-dir is set)
+  GET  /clienthello   — download the last captured ClientHello TLS record
   GET  /observations  — recorded probe observations
   GET  /health        — health check`,
 		Example: `  coherencelab serve --addr 127.0.0.1:8443 --capture-dir ./captured
@@ -347,14 +348,15 @@ func serveCmd() *cobra.Command {
 			}
 			fmt.Printf("CoherenceLab probe server listening on https://%s\n", addr)
 			fmt.Printf("  GET  /capture        — browser profile capture UI\n")
-			fmt.Printf("  POST /api/capture    — save capture (+ YAML if --capture-dir set)\n")
+			fmt.Printf("  POST /api/capture    — save capture (+ YAML + ClientHello if --capture-dir set)\n")
 			fmt.Printf("  GET  /probe          — receive live probe requests\n")
+			fmt.Printf("  GET  /clienthello    — download last ClientHello record\n")
 			fmt.Printf("  GET  /observations   — view captured observations\n")
 			fmt.Printf("  GET  /health         — health check\n")
 			if captureDir != "" {
 				fmt.Printf("\nCapture directory: %s\n", captureDir)
 			} else {
-				fmt.Println("\nTip: pass --capture-dir ./captured to write profile YAML automatically.")
+				fmt.Println("\nTip: pass --capture-dir ./captured to write profile YAML + ClientHello.bin automatically.")
 			}
 			fmt.Printf("\nOpen https://%s/capture in a real browser (accept the self-signed cert).\n", addr)
 			fmt.Println("Press Ctrl+C to stop.")
@@ -364,7 +366,7 @@ func serveCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:8443", "listen address")
-	cmd.Flags().StringVar(&captureDir, "capture-dir", "", "directory to write captured JSON + profile YAML")
+	cmd.Flags().StringVar(&captureDir, "capture-dir", "", "directory to write captured JSON + profile YAML + ClientHello.bin")
 	return cmd
 }
 
@@ -697,18 +699,71 @@ with RFC 9218 H3 types 0xF0700 / 0xF0701.`,
 		Use:   "fixtures",
 		Short: "List bundled testdata/corpus samples",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Printf("%-14s %-12s %-28s %s\n", "NAME", "KIND", "SOURCE", "NOTES")
+			fmt.Printf("%-18s %-12s %-28s %s\n", "NAME", "KIND", "SOURCE", "NOTES")
 			for _, f := range dissect.Catalog {
-				fmt.Printf("%-14s %-12s %-28s %s\n", f.Name, f.Kind, f.Source, f.Notes)
+				fmt.Printf("%-18s %-12s %-28s %s\n", f.Name, f.Kind, f.Source, f.Notes)
 			}
 			fmt.Println("\nExamples:")
 			fmt.Println("  coherencelab lab clienthello --fixture chrome_131")
+			fmt.Println("  coherencelab lab corpus --fixture chrome_131 --utls chrome_131")
 			fmt.Println("  coherencelab lab h2 --fixture h2_chrome")
 			fmt.Println("  coherencelab lab h3 --fixture h3_chrome")
-			fmt.Println("  coherencelab lab corpus --fixture chrome_131 --utls firefox_133")
+			fmt.Println("  coherencelab lab ingest-hello --bin captured/x.clienthello.bin --name chrome_131")
 			return nil
 		},
 	}
+
+	var (
+		ingestBin  string
+		ingestName string
+	)
+	ingestCmd := &cobra.Command{
+		Use:   "ingest-hello",
+		Short: "Copy a captured ClientHello record into testdata/corpus",
+		Long: `Writes raw TLS ClientHello bytes into the corpus directory.
+
+After ingesting a live browser capture as chrome_131, update fixtures.go
+Source/Notes to live-browser if you change the catalog entry. gen_corpus
+never overwrites clienthello-chrome_131.bin (live); it only regenerates
+chrome_131_utls.`,
+		Example: `  coherencelab lab ingest-hello --bin ./captured/probe.clienthello.bin --name chrome_131
+  coherencelab lab clienthello --fixture chrome_131
+  coherencelab lab corpus --fixture chrome_131 --utls chrome_131`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if ingestBin == "" || ingestName == "" {
+				return fmt.Errorf("--bin and --name required")
+			}
+			raw, err := os.ReadFile(ingestBin)
+			if err != nil {
+				return err
+			}
+			fx, err := dissect.LookupFixture(ingestName)
+			basename := ""
+			if err == nil && fx.Kind == "clienthello" {
+				basename = fx.File
+			} else {
+				basename = "clienthello-" + ingestName + ".bin"
+			}
+			path, err := dissect.IngestClientHello(basename, raw)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("wrote %s (%d bytes)\n", path, len(raw))
+			if fx != nil {
+				fmt.Printf("catalog: %s source=%s — %s\n", fx.Name, fx.Source, fx.Notes)
+			} else {
+				fmt.Println("note: name not in Catalog yet — add an entry in internal/dissect/fixtures.go")
+			}
+			ch, err := dissect.ParseClientHello(raw)
+			if err != nil {
+				return fmt.Errorf("wrote file but parse failed: %w", err)
+			}
+			fmt.Printf("parsed OK: SNI=%q extensions=%d JA3=%s\n", ch.SNI, len(ch.Extensions), ch.JA3Hash())
+			return nil
+		},
+	}
+	ingestCmd.Flags().StringVar(&ingestBin, "bin", "", "path to captured ClientHello TLS record")
+	ingestCmd.Flags().StringVar(&ingestName, "name", "", "catalog name (e.g. chrome_131) or new basename stem")
 
 	cmd.AddCommand(tlsCmd)
 	cmd.AddCommand(h2Cmd)
@@ -717,6 +772,7 @@ with RFC 9218 H3 types 0xF0700 / 0xF0701.`,
 	cmd.AddCommand(permCmd)
 	cmd.AddCommand(corpusCmd)
 	cmd.AddCommand(listCmd)
+	cmd.AddCommand(ingestCmd)
 	return cmd
 }
 
@@ -809,7 +865,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.8.5")
+			fmt.Println("coherencelab v1.8.6")
 		},
 	}
 }
