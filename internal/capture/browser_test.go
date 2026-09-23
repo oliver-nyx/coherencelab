@@ -3,7 +3,7 @@ package capture
 import (
 	"testing"
 
-	"github.com/coherencelab/coherencelab/internal/signal"
+	"github.com/oliver-nyx/coherencelab/internal/signal"
 )
 
 func TestInferFromUA(t *testing.T) {

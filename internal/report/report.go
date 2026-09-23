@@ -9,8 +9,8 @@ import (
 	"text/tabwriter"
 
 	"github.com/fatih/color"
-	"github.com/coherencelab/coherencelab/internal/rules"
-	"github.com/coherencelab/coherencelab/internal/scan"
+	"github.com/oliver-nyx/coherencelab/internal/rules"
+	"github.com/oliver-nyx/coherencelab/internal/scan"
 )
 
 // Format output format.

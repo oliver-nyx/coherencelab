@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/net/http2"
 
-	"github.com/coherencelab/coherencelab/internal/profile"
+	"github.com/oliver-nyx/coherencelab/internal/profile"
 )
 
 func applyProfileHTTP2(tr *http.Transport, h2t *http2.Transport, p *profile.Profile) {

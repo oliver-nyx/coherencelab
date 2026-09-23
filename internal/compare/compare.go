@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/coherencelab/coherencelab/internal/signal"
+	"github.com/oliver-nyx/coherencelab/internal/signal"
 )
 
 // Severity of a diff finding.

@@ -13,10 +13,10 @@ import (
 	utls "github.com/refraction-networking/utls"
 	"golang.org/x/net/http2"
 
-	"github.com/coherencelab/coherencelab/internal/h2wire"
-	"github.com/coherencelab/coherencelab/internal/profile"
-	"github.com/coherencelab/coherencelab/internal/signal"
-	"github.com/coherencelab/coherencelab/internal/tlsfp"
+	"github.com/oliver-nyx/coherencelab/internal/h2wire"
+	"github.com/oliver-nyx/coherencelab/internal/profile"
+	"github.com/oliver-nyx/coherencelab/internal/signal"
+	"github.com/oliver-nyx/coherencelab/internal/tlsfp"
 )
 
 // Config configures a coherence-aware HTTP client.

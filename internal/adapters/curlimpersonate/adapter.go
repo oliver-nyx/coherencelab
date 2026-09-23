@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/coherencelab/coherencelab/internal/signal"
+	"github.com/oliver-nyx/coherencelab/internal/signal"
 )
 
 // Export represents a curl-impersonate or curl_cffi export.

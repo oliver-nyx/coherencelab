@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/coherencelab/coherencelab/internal/capture"
-	"github.com/coherencelab/coherencelab/internal/h2wire"
-	"github.com/coherencelab/coherencelab/internal/signal"
+	"github.com/oliver-nyx/coherencelab/internal/capture"
+	"github.com/oliver-nyx/coherencelab/internal/h2wire"
+	"github.com/oliver-nyx/coherencelab/internal/signal"
 )
 
 //go:embed capture.html

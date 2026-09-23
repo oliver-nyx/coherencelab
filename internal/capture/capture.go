@@ -8,8 +8,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/coherencelab/coherencelab/internal/profile"
-	"github.com/coherencelab/coherencelab/internal/signal"
+	"github.com/oliver-nyx/coherencelab/internal/profile"
+	"github.com/oliver-nyx/coherencelab/internal/signal"
 )
 
 // Input is a captured session for profile generation.

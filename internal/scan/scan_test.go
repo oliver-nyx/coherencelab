@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/coherencelab/coherencelab/internal/profile"
+	"github.com/oliver-nyx/coherencelab/internal/profile"
 )
 
 func loadChrome(t *testing.T) *profile.Profile {

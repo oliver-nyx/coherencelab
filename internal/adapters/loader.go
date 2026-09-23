@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	httpcloakadapter "github.com/coherencelab/coherencelab/internal/adapters/httpcloak"
-	curladapter "github.com/coherencelab/coherencelab/internal/adapters/curlimpersonate"
-	pwadapter "github.com/coherencelab/coherencelab/internal/adapters/playwright"
-	"github.com/coherencelab/coherencelab/internal/profile"
-	"github.com/coherencelab/coherencelab/internal/signal"
+	httpcloakadapter "github.com/oliver-nyx/coherencelab/internal/adapters/httpcloak"
+	curladapter "github.com/oliver-nyx/coherencelab/internal/adapters/curlimpersonate"
+	pwadapter "github.com/oliver-nyx/coherencelab/internal/adapters/playwright"
+	"github.com/oliver-nyx/coherencelab/internal/profile"
+	"github.com/oliver-nyx/coherencelab/internal/signal"
 )
 
 // LoadSnapshot loads an identity snapshot from a JSON file using the given adapter.

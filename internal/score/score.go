@@ -3,7 +3,7 @@ package score
 import (
 	"sort"
 
-	"github.com/coherencelab/coherencelab/internal/rules"
+	"github.com/oliver-nyx/coherencelab/internal/rules"
 )
 
 // Grade represents an overall coherence grade.

@@ -285,7 +285,7 @@ Critical cross-layer failures (e.g. Firefox UA with Chrome Client Hints) automat
 ```go
 import (
     "context"
-    "github.com/coherencelab/coherencelab/pkg/coherencelab"
+    "github.com/oliver-nyx/coherencelab/pkg/coherencelab"
 )
 
 func main() {

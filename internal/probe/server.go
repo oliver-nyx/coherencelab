@@ -14,10 +14,10 @@ import (
 
 	utls "github.com/refraction-networking/utls"
 
-	"github.com/coherencelab/coherencelab/internal/capture"
-	"github.com/coherencelab/coherencelab/internal/h2wire"
-	"github.com/coherencelab/coherencelab/internal/signal"
-	"github.com/coherencelab/coherencelab/internal/tlsfp"
+	"github.com/oliver-nyx/coherencelab/internal/capture"
+	"github.com/oliver-nyx/coherencelab/internal/h2wire"
+	"github.com/oliver-nyx/coherencelab/internal/signal"
+	"github.com/oliver-nyx/coherencelab/internal/tlsfp"
 )
 
 // Observation is a recorded probe result from a client connection.

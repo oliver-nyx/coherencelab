@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/coherencelab/coherencelab/internal/client"
-	"github.com/coherencelab/coherencelab/internal/profile"
-	"github.com/coherencelab/coherencelab/internal/rules"
-	"github.com/coherencelab/coherencelab/internal/score"
-	"github.com/coherencelab/coherencelab/internal/signal"
+	"github.com/oliver-nyx/coherencelab/internal/client"
+	"github.com/oliver-nyx/coherencelab/internal/profile"
+	"github.com/oliver-nyx/coherencelab/internal/rules"
+	"github.com/oliver-nyx/coherencelab/internal/score"
+	"github.com/oliver-nyx/coherencelab/internal/signal"
 )
 
 // Mode defines scan execution mode.

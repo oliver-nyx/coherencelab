@@ -1,4 +1,4 @@
-module github.com/coherencelab/coherencelab
+module github.com/oliver-nyx/coherencelab
 
 go 1.24
 

@@ -10,8 +10,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/coherencelab/coherencelab/internal/profile"
-	"github.com/coherencelab/coherencelab/internal/scan"
+	"github.com/oliver-nyx/coherencelab/internal/profile"
+	"github.com/oliver-nyx/coherencelab/internal/scan"
 )
 
 // Server hosts the local report viewer.

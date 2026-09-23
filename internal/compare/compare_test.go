@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/coherencelab/coherencelab/internal/signal"
+	"github.com/oliver-nyx/coherencelab/internal/signal"
 )
 
 func TestSnapshotsDetectUAMismatch(t *testing.T) {

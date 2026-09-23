@@ -4,8 +4,8 @@ package coherencelab
 import (
 	"context"
 
-	"github.com/coherencelab/coherencelab/internal/profile"
-	"github.com/coherencelab/coherencelab/internal/scan"
+	"github.com/oliver-nyx/coherencelab/internal/profile"
+	"github.com/oliver-nyx/coherencelab/internal/scan"
 )
 
 // Profile is a browser identity profile.

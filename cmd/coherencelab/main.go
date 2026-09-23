@@ -9,14 +9,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/coherencelab/coherencelab/internal/adapters"
-	"github.com/coherencelab/coherencelab/internal/capture"
-	"github.com/coherencelab/coherencelab/internal/compare"
-	"github.com/coherencelab/coherencelab/internal/profile"
-	"github.com/coherencelab/coherencelab/internal/probe"
-	"github.com/coherencelab/coherencelab/internal/report"
-	"github.com/coherencelab/coherencelab/internal/scan"
-	"github.com/coherencelab/coherencelab/internal/ui"
+	"github.com/oliver-nyx/coherencelab/internal/adapters"
+	"github.com/oliver-nyx/coherencelab/internal/capture"
+	"github.com/oliver-nyx/coherencelab/internal/compare"
+	"github.com/oliver-nyx/coherencelab/internal/profile"
+	"github.com/oliver-nyx/coherencelab/internal/probe"
+	"github.com/oliver-nyx/coherencelab/internal/report"
+	"github.com/oliver-nyx/coherencelab/internal/scan"
+	"github.com/oliver-nyx/coherencelab/internal/ui"
 )
 
 var (
@@ -419,7 +419,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.7.0")
+			fmt.Println("coherencelab v1.7.1")
 		},
 	}
 }

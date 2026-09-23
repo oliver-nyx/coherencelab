@@ -3,8 +3,8 @@ package rules
 import (
 	"testing"
 
-	"github.com/coherencelab/coherencelab/internal/profile"
-	"github.com/coherencelab/coherencelab/internal/signal"
+	"github.com/oliver-nyx/coherencelab/internal/profile"
+	"github.com/oliver-nyx/coherencelab/internal/signal"
 )
 
 func TestJSWebdriverFail(t *testing.T) {

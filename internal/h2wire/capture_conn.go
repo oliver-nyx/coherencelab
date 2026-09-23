@@ -5,7 +5,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/coherencelab/coherencelab/internal/signal"
+	"github.com/oliver-nyx/coherencelab/internal/signal"
 )
 
 // CaptureConn wraps a connection and captures client-sent HTTP/2 SETTINGS from writes
