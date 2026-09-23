@@ -397,7 +397,7 @@ func uiCmd() *cobra.Command {
 func labCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lab",
-		Short: "Reverse-engineering labs (TLS ClientHello / HTTP/2 wire dissection)",
+		Short: "Reverse-engineering labs (TLS ClientHello / HTTP/2 / HTTP/3 wire dissection)",
 		Long: `Hands-on protocol dissection for browser-identity reverse engineering.
 
 These commands parse raw bytes with first-principles parsers (see internal/dissect).
@@ -414,6 +414,9 @@ Read the code — the annotations are the curriculum.`,
 		h2Hex        string
 		h2Bin        string
 		h2Fix        string
+		h3Hex        string
+		h3Bin        string
+		h3Fix        string
 		hpackHex     string
 		hpackBin     string
 		hpackDemo    string
@@ -517,6 +520,53 @@ Read the code — the annotations are the curriculum.`,
 	h2Cmd.Flags().StringVar(&h2Hex, "hex", "", "HTTP/2 bytes as hex")
 	h2Cmd.Flags().StringVar(&h2Bin, "bin", "", "path to raw HTTP/2 bytes")
 	h2Cmd.Flags().StringVar(&h2Fix, "fixture", "", "bundled testdata/corpus name (e.g. h2_chrome)")
+
+	h3Cmd := &cobra.Command{
+		Use:   "h3",
+		Short: "Dissect HTTP/3 stream frames (SETTINGS / GREASE / PRIORITY_UPDATE)",
+		Example: `  coherencelab lab h3 --fixture h3_chrome
+  coherencelab lab h3 --fixture h3_minimal
+  coherencelab lab h3 --bin decrypted-control-stream.bin`,
+		Long: `Parse post-decrypt HTTP/3 frames (QUIC varint Type/Length/Payload).
+
+This lab intentionally starts AFTER QUIC packet protection — feed decrypted
+control-stream bytes (or crafted fixtures). Compare Lab 07 (H2 type 0x10)
+with RFC 9218 H3 types 0xF0700 / 0xF0701.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var raw []byte
+			var err error
+			switch {
+			case h3Fix != "":
+				fx, b, e := dissect.LoadFixtureBytes(h3Fix)
+				if e != nil {
+					return e
+				}
+				if fx.Kind != "h3" {
+					return fmt.Errorf("fixture %s is kind %s (want h3)", fx.Name, fx.Kind)
+				}
+				fmt.Fprintf(os.Stderr, "fixture %s (%s): %s\n", fx.Name, fx.Source, fx.Notes)
+				raw = b
+			case h3Bin != "":
+				raw, err = os.ReadFile(h3Bin)
+			case h3Hex != "":
+				raw, err = decodeHex(h3Hex)
+			default:
+				return fmt.Errorf("provide --fixture, --hex, or --bin")
+			}
+			if err != nil {
+				return err
+			}
+			sess, err := dissect.ParseH3(raw)
+			if err != nil {
+				return err
+			}
+			dissect.FormatH3(os.Stdout, sess)
+			return nil
+		},
+	}
+	h3Cmd.Flags().StringVar(&h3Hex, "hex", "", "HTTP/3 stream bytes as hex")
+	h3Cmd.Flags().StringVar(&h3Bin, "bin", "", "path to decrypted HTTP/3 stream bytes")
+	h3Cmd.Flags().StringVar(&h3Fix, "fixture", "", "bundled testdata/corpus name (e.g. h3_chrome)")
 
 	headersCmd := &cobra.Command{
 		Use:   "headers",
@@ -654,6 +704,7 @@ Read the code — the annotations are the curriculum.`,
 			fmt.Println("\nExamples:")
 			fmt.Println("  coherencelab lab clienthello --fixture chrome_131")
 			fmt.Println("  coherencelab lab h2 --fixture h2_chrome")
+			fmt.Println("  coherencelab lab h3 --fixture h3_chrome")
 			fmt.Println("  coherencelab lab corpus --fixture chrome_131 --utls firefox_133")
 			return nil
 		},
@@ -661,6 +712,7 @@ Read the code — the annotations are the curriculum.`,
 
 	cmd.AddCommand(tlsCmd)
 	cmd.AddCommand(h2Cmd)
+	cmd.AddCommand(h3Cmd)
 	cmd.AddCommand(headersCmd)
 	cmd.AddCommand(permCmd)
 	cmd.AddCommand(corpusCmd)
@@ -757,7 +809,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.8.4")
+			fmt.Println("coherencelab v1.8.5")
 		},
 	}
 }

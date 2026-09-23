@@ -12,7 +12,7 @@ import (
 // Fixture describes a checked-in corpus sample under testdata/corpus.
 type Fixture struct {
 	Name        string // e.g. chrome_131
-	Kind        string // clienthello | h2
+	Kind        string // clienthello | h2 | h3
 	File        string // basename
 	UTLSClientID string // for ClientHello fixtures / corpus parrot default
 	Source      string // how it was produced
@@ -35,6 +35,10 @@ var Catalog = []Fixture{
 		Source: "crafted", Notes: "SETTINGS(+NO_RFC7540_PRIORITIES)+WINDOW_UPDATE+PRIORITY_UPDATE(u=0,i)+HEADERS/CONTINUATION m,a,s,p"},
 	{Name: "h2_firefox", Kind: "h2", File: "h2-firefox-like.bin",
 		Source: "crafted", Notes: "Preface+Firefox-like SETTINGS+HEADERS with m,p,a,s (no PRIORITY_UPDATE)"},
+	{Name: "h3_chrome", Kind: "h3", File: "h3-chrome-like.bin",
+		Source: "crafted", Notes: "H3 SETTINGS(+GREASE)+GREASE frame+PRIORITY_UPDATE(0xF0700,u=0,i)+HEADERS stub"},
+	{Name: "h3_minimal", Kind: "h3", File: "h3-minimal.bin",
+		Source: "crafted", Notes: "H3 SETTINGS only — no GREASE, no PRIORITY_UPDATE (naive stack)"},
 }
 
 // CorpusDir resolves testdata/corpus relative to this package or cwd.

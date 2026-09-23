@@ -9,6 +9,8 @@ Checked-in wire samples so labs work on a cold clone — **no Wireshark required
 | `clienthello-*.bin` | **uTLS-synthesized** via `SynthClientHello` (not a live browser pcap) |
 | `h2-chrome-like.bin` | Crafted Chromium-like session: SETTINGS (+`NO_RFC7540_PRIORITIES`), WINDOW_UPDATE, **PRIORITY_UPDATE** `u=0, i`, HEADERS/**CONTINUATION** |
 | `h2-firefox-like.bin` | Crafted Firefox-like SETTINGS + `m,p,a,s` HEADERS (no EPS) |
+| `h3-chrome-like.bin` | Crafted H3 control stream: SETTINGS(+GREASE)+GREASE frame+**PRIORITY_UPDATE 0xF0700** `u=0, i` |
+| `h3-minimal.bin` | Crafted H3 SETTINGS only (no GREASE / no PRIORITY_UPDATE) |
 
 Replace ClientHello bins with real browser captures when you have them; keep this README accurate.
 
@@ -24,6 +26,7 @@ go run ./tools/gen_corpus.go
 coherencelab lab fixtures
 coherencelab lab clienthello --fixture chrome_131
 coherencelab lab h2 --fixture h2_chrome
+coherencelab lab h3 --fixture h3_chrome
 coherencelab lab corpus --fixture chrome_131 --utls chrome_131
 coherencelab lab corpus --fixture chrome_131 --utls firefox_133
 ```

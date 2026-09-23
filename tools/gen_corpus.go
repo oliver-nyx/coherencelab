@@ -67,6 +67,46 @@ func main() {
 	ffPath := filepath.Join(dir, "h2-firefox-like.bin")
 	_ = os.WriteFile(ffPath, ff, 0o644)
 	fmt.Println("wrote", ffPath, len(ff), "bytes")
+
+	// HTTP/3 chrome-like control-stream frames (post-decrypt): SETTINGS+GREASE+PRIORITY_UPDATE+HEADERS stub
+	h3Chrome := craftH3ChromeLike()
+	h3ChromePath := filepath.Join(dir, "h3-chrome-like.bin")
+	_ = os.WriteFile(h3ChromePath, h3Chrome, 0o644)
+	fmt.Println("wrote", h3ChromePath, len(h3Chrome), "bytes")
+
+	h3Min := craftH3Minimal()
+	h3MinPath := filepath.Join(dir, "h3-minimal.bin")
+	_ = os.WriteFile(h3MinPath, h3Min, 0o644)
+	fmt.Println("wrote", h3MinPath, len(h3Min), "bytes")
+}
+
+func craftH3ChromeLike() []byte {
+	var settings []byte
+	settings = dissect.AppendVarint(settings, 0x01) // QPACK_MAX_TABLE_CAPACITY
+	settings = dissect.AppendVarint(settings, 0)
+	settings = dissect.AppendVarint(settings, 0x06) // MAX_FIELD_SECTION_SIZE
+	settings = dissect.AppendVarint(settings, 262144)
+	settings = dissect.AppendVarint(settings, 0x07) // QPACK_BLOCKED_STREAMS
+	settings = dissect.AppendVarint(settings, 100)
+	settings = dissect.AppendVarint(settings, 0x21) // GREASE setting
+	settings = dissect.AppendVarint(settings, 1)
+
+	var buf []byte
+	buf = dissect.AppendH3Frame(buf, 0x04, settings)
+	buf = dissect.AppendH3Frame(buf, 0x21, nil)
+	pu := append(dissect.EncodeVarint(0), []byte("u=0, i")...)
+	buf = dissect.AppendH3Frame(buf, 0xF0700, pu)
+	buf = dissect.AppendH3Frame(buf, 0x01, []byte{0x00})
+	return buf
+}
+
+func craftH3Minimal() []byte {
+	var settings []byte
+	settings = dissect.AppendVarint(settings, 0x01)
+	settings = dissect.AppendVarint(settings, 0)
+	settings = dissect.AppendVarint(settings, 0x06)
+	settings = dissect.AppendVarint(settings, 16384)
+	return dissect.AppendH3Frame(nil, 0x04, settings)
 }
 
 func frame(typ, flags uint8, stream uint32, payload []byte) []byte {

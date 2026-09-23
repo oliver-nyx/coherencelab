@@ -60,3 +60,8 @@ Compare Firefox fixture (no EPS frames):
 1. Why did Chrome send PRIORITY_UPDATE before HEADERS, and what must servers do?
 2. Why is Akamai field 3=`1` a lossy encoding of RFC 9218?
 3. What does BOTH legacy PRIORITY and PRIORITY_UPDATE in one session imply?
+
+## Next
+
+[Lab 08 — HTTP/3 PRIORITY_UPDATE](08-http3-priority.md)
+
