@@ -14,6 +14,7 @@ import (
 	"github.com/oliver-nyx/coherencelab/internal/adapters"
 	"github.com/oliver-nyx/coherencelab/internal/capture"
 	"github.com/oliver-nyx/coherencelab/internal/compare"
+	"github.com/oliver-nyx/coherencelab/internal/dissect"
 	"github.com/oliver-nyx/coherencelab/internal/profile"
 	"github.com/oliver-nyx/coherencelab/internal/probe"
 	"github.com/oliver-nyx/coherencelab/internal/report"
@@ -49,6 +50,7 @@ bot detection failures in production HTTP clients and automation stacks.`,
 	cmd.AddCommand(profilesCmd())
 	cmd.AddCommand(serveCmd())
 	cmd.AddCommand(uiCmd())
+	cmd.AddCommand(labCmd())
 	cmd.AddCommand(demoCmd())
 	cmd.AddCommand(versionCmd())
 	return cmd
@@ -392,6 +394,151 @@ func uiCmd() *cobra.Command {
 	return cmd
 }
 
+func labCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "lab",
+		Short: "Reverse-engineering labs (TLS ClientHello / HTTP/2 wire dissection)",
+		Long: `Hands-on protocol dissection for browser-identity reverse engineering.
+
+These commands parse raw bytes with first-principles parsers (see internal/dissect).
+Read the code — the annotations are the curriculum.`,
+	}
+
+	var (
+		helloProfile string
+		helloUTLS    string
+		helloHex     string
+		helloBin     string
+		sni          string
+		h2Hex        string
+		h2Bin        string
+	)
+
+	tlsCmd := &cobra.Command{
+		Use:   "clienthello",
+		Short: "Dissect a TLS ClientHello (file, hex, or synthesized from uTLS)",
+		Example: `  coherencelab lab clienthello --utls chrome_131
+  coherencelab lab clienthello --profile chrome-131-win
+  coherencelab lab clienthello --hex 160301...
+  coherencelab lab clienthello --bin capture.bin`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var raw []byte
+			var err error
+			switch {
+			case helloBin != "":
+				raw, err = os.ReadFile(helloBin)
+			case helloHex != "":
+				raw, err = decodeHex(helloHex)
+			case helloUTLS != "":
+				raw, err = dissect.SynthClientHello(helloUTLS, sni)
+			case helloProfile != "":
+				p, e := profile.FindByID(profilesDir, helloProfile)
+				if e != nil {
+					return e
+				}
+				raw, err = dissect.SynthClientHello(p.TLS.UTLSClientID, sni)
+			default:
+				return fmt.Errorf("provide --utls, --profile, --hex, or --bin")
+			}
+			if err != nil {
+				return err
+			}
+			ch, err := dissect.ParseClientHello(raw)
+			if err != nil {
+				return err
+			}
+			dissect.FormatClientHello(os.Stdout, ch)
+			return nil
+		},
+	}
+	tlsCmd.Flags().StringVar(&helloProfile, "profile", "", "synthesize ClientHello from profile utls_client_id")
+	tlsCmd.Flags().StringVar(&helloUTLS, "utls", "", "synthesize ClientHello from uTLS id (e.g. chrome_131)")
+	tlsCmd.Flags().StringVar(&helloHex, "hex", "", "ClientHello as hex (record or bare handshake)")
+	tlsCmd.Flags().StringVar(&helloBin, "bin", "", "path to raw ClientHello bytes")
+	tlsCmd.Flags().StringVar(&sni, "sni", "example.com", "SNI used when synthesizing")
+
+	h2Cmd := &cobra.Command{
+		Use:   "h2",
+		Short: "Dissect HTTP/2 preface + frames from hex or binary",
+		Example: `  coherencelab lab h2 --bin capture.h2
+  coherencelab lab h2 --hex 505249202a20485454502f322e30...`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var raw []byte
+			var err error
+			switch {
+			case h2Bin != "":
+				raw, err = os.ReadFile(h2Bin)
+			case h2Hex != "":
+				raw, err = decodeHex(h2Hex)
+			default:
+				return fmt.Errorf("provide --hex or --bin")
+			}
+			if err != nil {
+				return err
+			}
+			sess, err := dissect.ParseH2(raw)
+			if err != nil {
+				return err
+			}
+			dissect.FormatH2(os.Stdout, sess)
+			return nil
+		},
+	}
+	h2Cmd.Flags().StringVar(&h2Hex, "hex", "", "HTTP/2 bytes as hex")
+	h2Cmd.Flags().StringVar(&h2Bin, "bin", "", "path to raw HTTP/2 bytes")
+
+	cmd.AddCommand(tlsCmd)
+	cmd.AddCommand(h2Cmd)
+	return cmd
+}
+
+func decodeHex(s string) ([]byte, error) {
+	clean := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == ':' {
+			continue
+		}
+		clean = append(clean, c)
+	}
+	dst := make([]byte, len(clean)/2)
+	n, err := parseHex(dst, clean)
+	if err != nil {
+		return nil, err
+	}
+	return dst[:n], nil
+}
+
+func parseHex(dst, src []byte) (int, error) {
+	if len(src)%2 != 0 {
+		return 0, fmt.Errorf("odd hex length")
+	}
+	n := 0
+	for i := 0; i < len(src); i += 2 {
+		a := fromHex(src[i])
+		b := fromHex(src[i+1])
+		if a < 0 || b < 0 {
+			return 0, fmt.Errorf("invalid hex at %d", i)
+		}
+		dst[n] = byte(a<<4 | b)
+		n++
+	}
+	return n, nil
+}
+
+func fromHex(c byte) int {
+	switch {
+	case c >= '0' && c <= '9':
+		return int(c - '0')
+	case c >= 'a' && c <= 'f':
+		return int(c-'a') + 10
+	case c >= 'A' && c <= 'F':
+		return int(c-'A') + 10
+	default:
+		return -1
+	}
+}
+
 func demoCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "demo",
@@ -434,7 +581,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.7.2")
+			fmt.Println("coherencelab v1.8.0")
 		},
 	}
 }

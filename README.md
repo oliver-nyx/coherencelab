@@ -5,49 +5,50 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/oliver-nyx/coherencelab)](https://github.com/oliver-nyx/coherencelab/releases)
 
-**Browser identity consistency validator** — catch the mismatches that get HTTP clients and automation stacks blocked.
+**Open reverse-engineering lab for browser identity** — dissect real TLS ClientHellos and HTTP/2 frames, then validate cross-layer coherence.
 
-Most bot-detection failures are not a single bad fingerprint. They are **cross-layer contradictions**: Chrome TLS with Firefox headers, Windows `Sec-Ch-Ua-Platform` on a Linux User-Agent, HTTP/2 SETTINGS from Safari on a Chromium profile. CoherenceLab scores how well your identity signals align across layers.
+This is not a bypass toolkit. It is a place to **read protocol bytes, understand what detectors can infer, and practice the same skills used in serious fingerprint RE**.
 
 ```
-  ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-  │ TLS / JA3   │ ──► │ CoherenceLab │ ◄── │ Client Hints│
-  └─────────────┘     │    Scorer    │     └─────────────┘
-  ┌─────────────┐     │  23 rules    │     ┌─────────────┐
-  │ HTTP/2      │ ──► │              │ ◄── │ Header Order│
-  └─────────────┘     │              │     └─────────────┘
-  ┌─────────────┐     │              │     ┌─────────────┐
-  │ JS runtime  │ ──► │              │ ◄── │ User-Agent  │
-  └─────────────┘     └──────────────┘     └─────────────┘
+  Capture / synthesize          First-principles parse           Teach + score
+  ┌─────────────────┐          ┌──────────────────────┐         ┌─────────────┐
+  │ Real browser    │          │ ClientHello dissector│         │ Findings +  │
+  │ uTLS impersonator│ ──────► │ HTTP/2 frame parser  │ ──────► │ labs + CI   │
+  │ Session export  │          │ GREASE / order / ALPS│         │ coherence   │
+  └─────────────────┘          └──────────────────────┘         └─────────────┘
 ```
 
-## Why CoherenceLab?
+## Start with the hard labs
 
-| Tool | What it does | Gap |
-|------|--------------|-----|
-| [httpcloak](https://github.com/sardanioss/httpcloak) | TLS/H2 fingerprinting | One layer only |
-| [ShieldEye](https://github.com/diegopzz/ShieldEye) | Detects protections on pages | Doesn't validate *your* client |
-| [pingly](https://github.com/0x676e67/pingly) | TLS/HTTP analysis server | No cross-layer scoring |
+```bash
+go build -o bin/coherencelab ./cmd/coherencelab
 
-CoherenceLab fills the gap: **validate that every layer tells the same story**.
+# What does Chrome 131's ClientHello actually contain?
+./bin/coherencelab lab clienthello --utls chrome_131
 
-## Quick Start
+# Compare Firefox
+./bin/coherencelab lab clienthello --utls firefox_133
+```
 
-### Install
+Read the code while you run it:
+
+- [`internal/dissect/`](internal/dissect/) — raw TLS + HTTP/2 parsers with RE annotations
+- [`docs/labs/01-clienthello.md`](docs/labs/01-clienthello.md)
+- [`docs/labs/02-http2-wire.md`](docs/labs/02-http2-wire.md)
+
+## Coherence scoring (supporting tool)
+
+After you can read the wire, use the scorer to catch cross-layer contradictions in client configs:
+
+### Install / scan
 
 ```bash
 git clone https://github.com/oliver-nyx/coherencelab.git
 cd coherencelab
 go build -o bin/coherencelab ./cmd/coherencelab
-```
 
-### Scan a profile (local — no network)
-
-```bash
 ./bin/coherencelab scan --profile chrome-131-win --profiles profiles
 ```
-
-### List available browser profiles
 
 ```bash
 ./bin/coherencelab profiles list --profiles profiles
@@ -303,37 +304,32 @@ coherencelab/
 ├── internal/
 │   ├── profile/            YAML profile loader + validation
 │   ├── signal/             Observed identity snapshot
+│   ├── dissect/            First-principles TLS ClientHello + HTTP/2 parsers
 │   ├── rules/              23 coherence rules engine
 │   ├── score/              Weighted scoring + grading
 │   ├── client/             uTLS HTTP client + header builder
 │   ├── h2wire/             HTTP/2 SETTINGS wire capture
 │   ├── probe/              Local TLS probe + browser capture server
 │   ├── scan/               Scan orchestration (local/live/mutate/import)
-│   ├── tlsfp/              JA3/JA4 + uTLS preset mapping
+│   ├── tlsfp/              JA3/JA4 helpers + uTLS preset mapping
 │   ├── adapters/           httpcloak / Playwright / curl import
 │   ├── compare/            Diff two session exports
 │   ├── capture/            Session JSON → profile YAML
 │   ├── ui/                 Local Web UI report viewer
 │   └── report/             Text + JSON report rendering
+├── docs/labs/              Reverse-engineering lab writeups
 ├── action.yml              Reusable GitHub Action
 ├── pkg/coherencelab/       Public Go API
 └── profiles/               Browser identity profiles
-```
-
-## Output formats
-
-```bash
-# Human-readable (default)
-./bin/coherencelab scan -p chrome-131-win --profiles profiles
-
-# JSON report
-./bin/coherencelab scan -p chrome-131-win -o report.json --format json --profiles profiles
 ```
 
 ## What's complete vs planned
 
 | Area | Status |
 |------|--------|
+| TLS ClientHello dissector (GREASE, order, ALPS, ECH) | ✓ Complete |
+| HTTP/2 frame dissector (SETTINGS / WINDOW_UPDATE / PRIORITY_UPDATE) | ✓ Complete |
+| RE labs (`lab clienthello`, `lab h2`) | ✓ Complete |
 | 23-rule coherence engine | ✓ Complete |
 | 18 browser profiles | ✓ Complete |
 | Local + mutate + live scan modes | ✓ Complete |
@@ -360,10 +356,15 @@ coherencelab/
 - [x] JS runtime fingerprint probes (WebGL, navigator)
 - [x] Profile sync from live browser capture
 - [x] Web UI report viewer
+- [x] First-principles TLS ClientHello + HTTP/2 dissectors (`lab`)
+- [ ] HPACK / pseudo-header order lab
+- [ ] PRIORITY_UPDATE corpus diffs across browser versions
 
 ## Docs
 
 - [Getting started](docs/getting-started.md)
+- [Lab 01: ClientHello dissection](docs/labs/01-clienthello.md)
+- [Lab 02: HTTP/2 wire](docs/labs/02-http2-wire.md)
 - [GitHub Action](docs/github-action.md)
 - [Blog: Why your HTTP client gets blocked](docs/blog/identity-coherence.md)
 - [JS runtime probes](docs/adapters/js-runtime.md)
