@@ -47,6 +47,13 @@ func FormatH3(w io.Writer, s *H3Session) {
 		fmt.Fprintf(w, "Priority fingerprint field: %s\n", s.PriorityFingerprint())
 	}
 	fmt.Fprintf(w, "\nH3 golden fingerprint:\n  %s\n", H3Fingerprint(s))
+	if s.QPACK != nil {
+		fmt.Fprintln(w, "\n── QPACK HEADERS ──")
+		fmt.Fprintf(w, "Pseudo order: %s  family≈%s  RIC=%d\n", s.QPACK.PseudoOrder, s.QPACK.FamilyGuess, s.QPACK.RequiredInsertCount)
+		for i, f := range s.QPACK.Fields {
+			fmt.Fprintf(w, "%2d. %s: %s\n", i+1, f.Name, f.Value)
+		}
+	}
 	fmt.Fprintln(w, "\n── Findings ──")
 	for _, f := range s.Findings {
 		fmt.Fprintf(w, "• %s\n", f)

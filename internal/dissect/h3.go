@@ -62,6 +62,8 @@ type H3Session struct {
 	Frames          []H3Frame
 	Settings        []H3Setting
 	PriorityUpdates []*H3PriorityUpdate
+	HeaderBlock     *HeaderBlock // first successfully decoded HEADERS (QPACK)
+	QPACK           *QPACKFieldSection
 	Findings        []string
 	Raw             []byte
 }
@@ -129,8 +131,18 @@ func annotateH3Frame(s *H3Session, fr *H3Frame) {
 		}
 		fr.Note = pu.Note
 	case fr.Type == H3FrameHeaders:
-		fr.Detail = fmt.Sprintf("QPACK section %d bytes (decoder not in this lab)", len(fr.Payload))
-		fr.Note = "HTTP/3 HEADERS carry QPACK — different entropy surface than HPACK; order still matters after decode"
+		sec, err := DecodeQPACKFieldSection(fr.Payload)
+		if err != nil {
+			fr.Detail = fmt.Sprintf("QPACK section %d bytes — decode: %v", len(fr.Payload), err)
+			fr.Note = "HTTP/3 HEADERS carry QPACK; Lab 12 static decoder needs RIC=0 (see lab qpack)"
+			return
+		}
+		fr.Detail = fmt.Sprintf("QPACK pseudo=%s family≈%s fields=%d", sec.PseudoOrder, sec.FamilyGuess, len(sec.Fields))
+		fr.Note = "QPACK Encoded Field Section decoded (RFC 9204) — indices differ from HPACK static table"
+		if s.QPACK == nil {
+			s.QPACK = sec
+			s.HeaderBlock = sec.ToHeaderBlock()
+		}
 	case fr.Type == H3FrameData:
 		fr.Detail = fmt.Sprintf("%d bytes", len(fr.Payload))
 	case fr.Type == H3FrameGoAway:
@@ -325,6 +337,9 @@ func h3Findings(s *H3Session) []string {
 	}
 	if hasGreaseSetting {
 		out = append(out, "GREASE SETTINGS id(s) observed")
+	}
+	if s.HeaderBlock != nil {
+		out = append(out, fmt.Sprintf("QPACK pseudo-order %s (family≈%s) — compare with Lab 03 HPACK order", s.HeaderBlock.PseudoOrder, s.HeaderBlock.FamilyGuess))
 	}
 	for _, pu := range s.PriorityUpdates {
 		if pu.FrameType == H3FramePriorityUpdateRequest && pu.TargetID%4 != 0 {

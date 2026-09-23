@@ -83,6 +83,9 @@ func TestH3FixtureCatalog(t *testing.T) {
 	if !contains(s.PriorityFingerprint(), "u=0,i") {
 		t.Fatalf("fp=%s", s.PriorityFingerprint())
 	}
+	if s.HeaderBlock == nil || s.HeaderBlock.PseudoOrder != PseudoChrome {
+		t.Fatalf("expected QPACK chrome pseudo, got %+v", s.HeaderBlock)
+	}
 
 	_, raw2, err := LoadFixtureBytes("h3_minimal")
 	if err != nil {
@@ -126,7 +129,11 @@ func craftH3ChromeLike() []byte {
 	buf = AppendH3Frame(buf, 0x21, nil) // GREASE frame
 	puPayload := append(EncodeVarint(0), []byte("u=0, i")...)
 	buf = AppendH3Frame(buf, H3FramePriorityUpdateRequest, puPayload)
-	buf = AppendH3Frame(buf, H3FrameHeaders, []byte{0x00}) // placeholder QPACK
+	qpack, err := EncodeQPACKPseudoBlock(PseudoChrome, "example.com")
+	if err != nil {
+		panic(err)
+	}
+	buf = AppendH3Frame(buf, H3FrameHeaders, qpack)
 	return buf
 }
 

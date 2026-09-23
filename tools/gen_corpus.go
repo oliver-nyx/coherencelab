@@ -79,6 +79,20 @@ func main() {
 	_ = os.WriteFile(h3MinPath, h3Min, 0o644)
 	fmt.Println("wrote", h3MinPath, len(h3Min), "bytes")
 
+	for _, q := range []struct{ order, file string }{
+		{dissect.PseudoChrome, "qpack-chrome.bin"},
+		{dissect.PseudoFirefox, "qpack-firefox.bin"},
+		{dissect.PseudoSafari, "qpack-safari.bin"},
+	} {
+		qb, err := dissect.EncodeQPACKPseudoBlock(q.order, "example.com")
+		if err != nil {
+			panic(err)
+		}
+		qp := filepath.Join(dir, q.file)
+		_ = os.WriteFile(qp, qb, 0o644)
+		fmt.Println("wrote", qp, len(qb), "bytes")
+	}
+
 	quicInit, err := dissect.CraftChromeLikeInitial()
 	if err != nil {
 		panic(err)
@@ -122,7 +136,11 @@ func craftH3ChromeLike() []byte {
 	buf = dissect.AppendH3Frame(buf, 0x21, nil)
 	pu := append(dissect.EncodeVarint(0), []byte("u=0, i")...)
 	buf = dissect.AppendH3Frame(buf, 0xF0700, pu)
-	buf = dissect.AppendH3Frame(buf, 0x01, []byte{0x00})
+	qpack, err := dissect.EncodeQPACKPseudoBlock(dissect.PseudoChrome, "example.com")
+	if err != nil {
+		panic(err)
+	}
+	buf = dissect.AppendH3Frame(buf, 0x01, qpack)
 	return buf
 }
 

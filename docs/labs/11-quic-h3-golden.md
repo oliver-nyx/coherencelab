@@ -64,5 +64,4 @@ lock — same workflow as Lab 06 ClientHello corpus diffs, one layer up.
 
 ## Next
 
-QPACK header-block decode (H3 HEADERS are still stubs), or live Safari
-ClientHello on macOS/iOS.
+[Lab 12 — QPACK field sections](12-qpack.md)

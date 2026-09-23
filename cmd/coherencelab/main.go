@@ -761,6 +761,77 @@ Packet class is auto-detected unless --header-only / --tp is set.`,
 	permCmd.Flags().StringVar(&sni, "sni", "example.com", "SNI used when synthesizing")
 
 	var (
+		qpackDemo string
+		qpackHex  string
+		qpackBin  string
+		qpackFix  string
+	)
+	qpackCmd := &cobra.Command{
+		Use:   "qpack",
+		Short: "Decode QPACK Encoded Field Sections (HTTP/3 HEADERS)",
+		Long: `Lab 12 — first-principles QPACK field-section decode (RFC 9204).
+
+Focuses on Required Insert Count = 0 (static table + literals), matching
+Chromium builds that advertise QPACK_MAX_TABLE_CAPACITY=0. Dynamic-table
+references (RIC>0) are rejected with an explicit boundary error.
+
+Static table indices differ from HPACK — :method GET is QPACK 17, not HPACK 2.`,
+		Example: `  coherencelab lab qpack --demo chrome
+  coherencelab lab qpack --fixture qpack_chrome
+  coherencelab lab qpack --fixture qpack_firefox
+  coherencelab lab h3 --fixture h3_chrome`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var raw []byte
+			var err error
+			switch {
+			case qpackFix != "":
+				fx, b, e := dissect.LoadFixtureBytes(qpackFix)
+				if e != nil {
+					return e
+				}
+				if fx.Kind != "qpack" && fx.Kind != "h3" {
+					return fmt.Errorf("fixture %s is kind %s (want qpack or h3)", fx.Name, fx.Kind)
+				}
+				fmt.Fprintf(os.Stderr, "fixture %s (%s): %s\n", fx.Name, fx.Source, fx.Notes)
+				if fx.Kind == "h3" {
+					sess, e := dissect.ParseH3(b)
+					if e != nil {
+						return e
+					}
+					if sess.QPACK == nil {
+						return fmt.Errorf("h3 fixture has no decodable HEADERS")
+					}
+					dissect.FormatQPACK(os.Stdout, sess.QPACK)
+					return nil
+				}
+				raw = b
+			case qpackDemo != "":
+				raw, err = dissect.EncodeQPACKPseudoBlock(qpackDemo, sni)
+			case qpackBin != "":
+				raw, err = os.ReadFile(qpackBin)
+			case qpackHex != "":
+				raw, err = decodeHex(qpackHex)
+			default:
+				return fmt.Errorf("provide --demo, --fixture, --hex, or --bin")
+			}
+			if err != nil {
+				return err
+			}
+			sec, err := dissect.DecodeQPACKFieldSection(raw)
+			if err != nil {
+				return err
+			}
+			dissect.FormatQPACK(os.Stdout, sec)
+			return nil
+		},
+	}
+	qpackCmd.Flags().StringVar(&qpackDemo, "demo", "", "emit chrome|firefox|safari pseudo order")
+	qpackCmd.Flags().StringVar(&qpackHex, "hex", "", "QPACK field section as hex")
+	qpackCmd.Flags().StringVar(&qpackBin, "bin", "", "path to QPACK field section bytes")
+	qpackCmd.Flags().StringVar(&qpackFix, "fixture", "", "bundled testdata/corpus name (e.g. qpack_chrome)")
+	qpackCmd.Flags().StringVar(&sni, "sni", "example.com", "authority used with --demo")
+
+	var (
 		corpusBin  string
 		corpusHex  string
 		corpusFix  string
@@ -926,6 +997,7 @@ ones and checks H2/H3/QUIC family coherence.`,
 			fmt.Println("  coherencelab lab corpus --fixture chrome_131 --utls chrome_131")
 			fmt.Println("  coherencelab lab h2 --fixture h2_chrome")
 			fmt.Println("  coherencelab lab h3 --fixture h3_chrome")
+			fmt.Println("  coherencelab lab qpack --fixture qpack_chrome")
 			fmt.Println("  coherencelab lab quic --fixture quic_initial_chrome")
 			fmt.Println("  coherencelab lab quic --fixture quic_vn")
 			fmt.Println("  coherencelab lab quic --fixture quic_retry")
@@ -992,6 +1064,7 @@ chrome_131_utls.`,
 	cmd.AddCommand(h3Cmd)
 	cmd.AddCommand(quicCmd)
 	cmd.AddCommand(headersCmd)
+	cmd.AddCommand(qpackCmd)
 	cmd.AddCommand(permCmd)
 	cmd.AddCommand(corpusCmd)
 	cmd.AddCommand(goldenCmd)
@@ -1089,7 +1162,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.8.10")
+			fmt.Println("coherencelab v1.8.11")
 		},
 	}
 }

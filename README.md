@@ -395,6 +395,8 @@ coherencelab/
 - [x] Live Edge ClientHello fixture (Chrome + Edge bundled)
 - [x] Live Firefox ClientHello fixture (Windows; Safari still needs macOS/iOS)
 - [x] QUIC/H3 golden fingerprints + cross-layer coherence (`lab golden`)
+- [x] QPACK Encoded Field Section decode (Lab 12; static / RIC=0)
+- [ ] Live Safari ClientHello (requires macOS/iOS — deferred)
 
 ## Docs
 
@@ -410,6 +412,7 @@ coherencelab/
 - [Lab 09: QUIC Initial & transport parameters](docs/labs/09-quic-initial.md)
 - [Lab 10: QUIC Version Negotiation & Retry](docs/labs/10-quic-vn-retry.md)
 - [Lab 11: QUIC/H3 golden fingerprints](docs/labs/11-quic-h3-golden.md)
+- [Lab 12: QPACK field sections](docs/labs/12-qpack.md)
 - [GitHub Action](docs/github-action.md)
 - [Blog: Why your HTTP client gets blocked](docs/blog/identity-coherence.md)
 - [JS runtime probes](docs/adapters/js-runtime.md)
