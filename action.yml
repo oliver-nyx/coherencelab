@@ -14,7 +14,7 @@ inputs:
     required: false
     default: "90"
   mode:
-    description: Scan mode — local, mutate, or live
+    description: Scan mode â€” local, mutate, or live
     required: false
     default: local
   mutate:
@@ -32,9 +32,9 @@ inputs:
   version:
     description: CoherenceLab release tag or branch to install (ignored when local-source is set)
     required: false
-    default: "v1.8.11"
+    default: "v1.8.12"
   local-source:
-    description: Path to a local CoherenceLab checkout (relative to workspace). Skips git clone — use "." when dogfooding this repo.
+    description: Path to a local CoherenceLab checkout (relative to workspace). Skips git clone â€” use "." when dogfooding this repo.
     required: false
     default: ""
   working-directory:
@@ -48,7 +48,7 @@ inputs:
 
 outputs:
   grade:
-    description: Letter grade from the scan (A–F)
+    description: Letter grade from the scan (Aâ€“F)
     value: ${{ steps.scan.outputs.grade }}
   score:
     description: Score percentage from the scan

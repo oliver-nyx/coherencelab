@@ -14,7 +14,7 @@ func main() {
 	dir := "testdata/corpus"
 	_ = os.MkdirAll(dir, 0o755)
 	hellos := []struct{ id, file string }{
-		{"chrome_131", "clienthello-chrome_131_utls.bin"}, // parrot baseline — never overwrite live chrome_131
+		{"chrome_131", "clienthello-chrome_131_utls.bin"}, // parrot baseline â€” never overwrite live chrome_131
 		{"firefox_133", "clienthello-firefox_133.bin"},
 		{"safari_18", "clienthello-safari_18.bin"},
 		{"ios_14", "clienthello-safari_ios.bin"},
@@ -68,7 +68,7 @@ func main() {
 	_ = os.WriteFile(ffPath, ff, 0o644)
 	fmt.Println("wrote", ffPath, len(ff), "bytes")
 
-	// HTTP/3 chrome-like control-stream frames (post-decrypt): SETTINGS+GREASE+PRIORITY_UPDATE+HEADERS stub
+	// HTTP/3 chrome-like control-stream frames (post-decrypt): SETTINGS+GREASE+PRIORITY_UPDATE+QPACK HEADERS
 	h3Chrome := craftH3ChromeLike()
 	h3ChromePath := filepath.Join(dir, "h3-chrome-like.bin")
 	_ = os.WriteFile(h3ChromePath, h3Chrome, 0o644)

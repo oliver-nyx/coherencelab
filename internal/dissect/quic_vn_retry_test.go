@@ -76,3 +76,19 @@ func TestRetryAndVNFixtures(t *testing.T) {
 		t.Fatal("fixture retry tag invalid")
 	}
 }
+
+func TestQUICVersionGREASEMask(t *testing.T) {
+	if !IsQUICVersionGREASE(0x1a2a3a4a) {
+		t.Fatal("expected 0x1a2a3a4a grease")
+	}
+	if !IsQUICVersionGREASE(0x0a0a0a0a) {
+		t.Fatal("expected 0x0a0a0a0a grease")
+	}
+	// Each nibble-pair must end in 0xa — 0x0b0b0b0b matched the old buggy &0x0a0a0a0a test.
+	if IsQUICVersionGREASE(0x0b0b0b0b) {
+		t.Fatal("0x0b0b0b0b must not be GREASE")
+	}
+	if IsQUICVersionGREASE(0x00000001) {
+		t.Fatal("QUICv1 must not be GREASE")
+	}
+}

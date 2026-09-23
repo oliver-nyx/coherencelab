@@ -22,7 +22,7 @@ func annotateClientHello(ch *ClientHello) {
 		case ext.Type == ExtPadding:
 			ext.Note = "padding normalizes ClientHello size (anti-traffic-analysis). Length distribution still leaks implementation family."
 		case ext.Type == ExtCompressCertificate:
-			ext.Note = "compress_certificate is Chromium-heavy. Rare in curl/Go defaults."
+			ext.Note = "compress_certificate (RFC 8879) — browsers advertise it; Chromium often brotli, Firefox often zlib. Rare in curl/Go defaults."
 		case ext.Type == ExtServerName:
 			ext.Note = "SNI is cleartext unless ECH is used. For JA3/JA4, SNI presence flips the 't' vs 'd' / ALpn dimension depending on spec variant."
 		}
@@ -40,10 +40,10 @@ func (ch *ClientHello) Findings() []string {
 		}
 	}
 	if ch.GREASECipherCount > 0 || ch.GREASEExtensionCount > 0 {
-		out = append(out, fmt.Sprintf("GREASE present: %d cipher(s), %d extension type(s) — Chrome-like randomization; strip before JA3, keep for permutation analysis",
+		out = append(out, fmt.Sprintf("GREASE present: %d cipher(s), %d extension type(s) — modern browser randomization; strip before JA3, keep for permutation analysis",
 			ch.GREASECipherCount, ch.GREASEExtensionCount))
 	} else {
-		out = append(out, "No GREASE in ciphers/extension types — atypical for modern Chrome; consistent with Firefox older builds, Safari, or naive impersonation")
+		out = append(out, "No GREASE in ciphers/extension types — atypical for modern Chrome/Firefox; more consistent with Safari, older stacks, or naive impersonation")
 	}
 	if ch.HasALPS {
 		out = append(out, "ALPS extension present — Chromium family signal")

@@ -20,14 +20,16 @@ Questions the report should help you answer:
 2. What is special about `INITIAL_WINDOW_SIZE=6291456`?
 3. What does connection-level `WINDOW_UPDATE` increment `15663105` indicate?
 4. Why does `PRIORITY_UPDATE` / `NO_RFC7540_PRIORITIES` matter after RFC 9218?
-5. Why does this lab **not** fully decode HPACK — and what would a follow-up lab add (pseudo-header order)?
+5. How do CONTINUATION frames interact with HPACK decode (Lab 05), and why does
+   pseudo-header **order** after merge matter more than JA3?
 
 ## What high-level RE looks for
 
 - Frame header parsed by hand (`length:24 type:8 flags:8 stream:31`).
 - SETTINGS as 6-byte entries with per-ID teaching notes.
 - Findings that cite **known browser constants**, not vibes.
-- Explicit boundary: HEADERS payload left opaque with a pointer to HPACK/pseudo-order as the next hard problem.
+- HEADERS/CONTINUATION assembled then HPACK-decoded when `END_HEADERS` lands
+  (Labs 03/05 deepen pseudo-order and merge rules).
 
 ## Next
 

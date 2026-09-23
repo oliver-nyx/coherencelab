@@ -123,9 +123,10 @@ func ParseQUICLongHeader(b []byte) (*QUICLongHeader, error) {
 }
 
 // IsQUICVersionGREASE reports draft-ietf-quic-version-negotiation grease versions:
-// of the form 0x?a?a?a?a.
+// of the form 0x?a?a?a?a — each nibble pair ends in 0xa (Chromium/quic-go test:
+// (version & 0x0f0f0f0f) == 0x0a0a0a0a).
 func IsQUICVersionGREASE(v uint32) bool {
-	return v&0x0a0a0a0a == 0x0a0a0a0a
+	return v&0x0f0f0f0f == 0x0a0a0a0a
 }
 
 func quicLongTypeName(t int) string {

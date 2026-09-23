@@ -332,12 +332,12 @@ func serveCmd() *cobra.Command {
 		Short: "Start a local TLS probe + browser capture server",
 		Long: `Starts a local HTTPS server for live probes and real-browser profile capture.
 
-  GET  /capture       — open in Chrome/Firefox/Safari to auto-capture a profile
-  POST /api/capture   — receive JS runtime + write YAML + ClientHello.bin (when --capture-dir is set)
-  GET  /probe         — live scan target (also writes ClientHello.bin when --capture-dir is set)
-  GET  /clienthello   — download the last captured ClientHello TLS record
-  GET  /observations  — recorded probe observations
-  GET  /health        — health check`,
+  GET  /capture       â€” open in Chrome/Firefox/Safari to auto-capture a profile
+  POST /api/capture   â€” receive JS runtime + write YAML + ClientHello.bin (when --capture-dir is set)
+  GET  /probe         â€” live scan target (also writes ClientHello.bin when --capture-dir is set)
+  GET  /clienthello   â€” download the last captured ClientHello TLS record
+  GET  /observations  â€” recorded probe observations
+  GET  /health        â€” health check`,
 		Example: `  coherencelab serve --addr 127.0.0.1:8443 --capture-dir ./captured
   # then open https://127.0.0.1:8443/capture in your browser`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -347,12 +347,12 @@ func serveCmd() *cobra.Command {
 				return err
 			}
 			fmt.Printf("CoherenceLab probe server listening on https://%s\n", addr)
-			fmt.Printf("  GET  /capture        — browser profile capture UI\n")
-			fmt.Printf("  POST /api/capture    — save capture (+ YAML + ClientHello if --capture-dir set)\n")
-			fmt.Printf("  GET  /probe          — receive live probe requests\n")
-			fmt.Printf("  GET  /clienthello    — download last ClientHello record\n")
-			fmt.Printf("  GET  /observations   — view captured observations\n")
-			fmt.Printf("  GET  /health         — health check\n")
+			fmt.Printf("  GET  /capture        â€” browser profile capture UI\n")
+			fmt.Printf("  POST /api/capture    â€” save capture (+ YAML + ClientHello if --capture-dir set)\n")
+			fmt.Printf("  GET  /probe          â€” receive live probe requests\n")
+			fmt.Printf("  GET  /clienthello    â€” download last ClientHello record\n")
+			fmt.Printf("  GET  /observations   â€” view captured observations\n")
+			fmt.Printf("  GET  /health         â€” health check\n")
 			if captureDir != "" {
 				fmt.Printf("\nCapture directory: %s\n", captureDir)
 			} else {
@@ -403,7 +403,7 @@ func labCmd() *cobra.Command {
 		Long: `Hands-on protocol dissection for browser-identity reverse engineering.
 
 These commands parse raw bytes with first-principles parsers (see internal/dissect).
-Read the code — the annotations are the curriculum.`,
+Read the code â€” the annotations are the curriculum.`,
 	}
 
 	var (
@@ -531,7 +531,7 @@ Read the code — the annotations are the curriculum.`,
   coherencelab lab h3 --bin decrypted-control-stream.bin`,
 		Long: `Parse post-decrypt HTTP/3 frames (QUIC varint Type/Length/Payload).
 
-This lab intentionally starts AFTER QUIC packet protection — feed decrypted
+This lab intentionally starts AFTER QUIC packet protection â€” feed decrypted
 control-stream bytes (or crafted fixtures). Compare Lab 07 (H2 type 0x10)
 with RFC 9218 H3 types 0xF0700 / 0xF0701.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -583,10 +583,10 @@ with RFC 9218 H3 types 0xF0700 / 0xF0701.`,
 		Short: "Dissect QUIC Initial / Retry / Version Negotiation / transport parameters",
 		Long: `Parse QUIC UDP payloads (RFC 9000/9001):
 
-  Initial  — long header → HP → AEAD (v1 salt) → CRYPTO → ClientHello → TPs
-  Retry    — token + integrity tag (pass --odcid to verify)
-  VN       — version=0 supported-version list (incl. GREASE 0x?a?a?a?a)
-  TP blob  — --tp or fixture kind quic_tp
+  Initial  â€” long header â†’ HP â†’ AEAD (v1 salt) â†’ CRYPTO â†’ ClientHello â†’ TPs
+  Retry    â€” token + integrity tag (pass --odcid to verify)
+  VN       â€” version=0 supported-version list (incl. GREASE 0x?a?a?a?a)
+  TP blob  â€” --tp or fixture kind quic_tp
 
 Packet class is auto-detected unless --header-only / --tp is set.`,
 		Example: `  coherencelab lab quic --fixture quic_initial_chrome
@@ -621,7 +621,7 @@ Packet class is auto-detected unless --header-only / --tp is set.`,
 				if err != nil {
 					return err
 				}
-				fmt.Fprintln(os.Stdout, "═══ QUIC transport parameters ═══")
+				fmt.Fprintln(os.Stdout, "â•â•â• QUIC transport parameters â•â•â•")
 				dissect.FormatTransportParameters(os.Stdout, tps)
 				fmt.Fprintf(os.Stdout, "\nQUIC TP golden fingerprint:\n  %s\n", dissect.TransportFingerprint(tps))
 				return nil
@@ -680,7 +680,7 @@ Packet class is auto-detected unless --header-only / --tp is set.`,
 				if err != nil {
 					return fmt.Errorf("quic: unsupported class %s: %w", class, err)
 				}
-				fmt.Fprintf(os.Stderr, "class=%s — showing header only\n", class)
+				fmt.Fprintf(os.Stderr, "class=%s â€” showing header only\n", class)
 				dissect.FormatQUICLongHeader(os.Stdout, h)
 				return nil
 			}
@@ -730,7 +730,7 @@ Packet class is auto-detected unless --header-only / --tp is set.`,
 			if err != nil {
 				return err
 			}
-			fmt.Fprintln(os.Stdout, "═══ HPACK header block ═══")
+			fmt.Fprintln(os.Stdout, "â•â•â• HPACK header block â•â•â•")
 			dissect.FormatHeaderBlock(os.Stdout, hb)
 			return nil
 		},
@@ -769,13 +769,13 @@ Packet class is auto-detected unless --header-only / --tp is set.`,
 	qpackCmd := &cobra.Command{
 		Use:   "qpack",
 		Short: "Decode QPACK Encoded Field Sections (HTTP/3 HEADERS)",
-		Long: `Lab 12 — first-principles QPACK field-section decode (RFC 9204).
+		Long: `Lab 12 â€” first-principles QPACK field-section decode (RFC 9204).
 
 Focuses on Required Insert Count = 0 (static table + literals), matching
 Chromium builds that advertise QPACK_MAX_TABLE_CAPACITY=0. Dynamic-table
 references (RIC>0) are rejected with an explicit boundary error.
 
-Static table indices differ from HPACK — :method GET is QPACK 17, not HPACK 2.`,
+Static table indices differ from HPACK â€” :method GET is QPACK 17, not HPACK 2.`,
 		Example: `  coherencelab lab qpack --demo chrome
   coherencelab lab qpack --fixture qpack_chrome
   coherencelab lab qpack --fixture qpack_firefox
@@ -899,7 +899,7 @@ Static table indices differ from HPACK — :method GET is QPACK 17, not HPACK 2.
 	goldenCmd := &cobra.Command{
 		Use:   "golden",
 		Short: "Diff QUIC/H3 golden fingerprints (chrome-like vs naive) + cross-layer coherence",
-		Long: `Lab 11 — lock chrome-like QUIC TP and HTTP/3 fingerprints, then score a naive
+		Long: `Lab 11 â€” lock chrome-like QUIC TP and HTTP/3 fingerprints, then score a naive
 stack against them. Default run compares bundled chrome fixtures to minimal
 ones and checks H2/H3/QUIC family coherence.`,
 		Example: `  coherencelab lab golden
@@ -1044,9 +1044,9 @@ chrome_131_utls.`,
 			}
 			fmt.Printf("wrote %s (%d bytes)\n", path, len(raw))
 			if fx != nil {
-				fmt.Printf("catalog: %s source=%s — %s\n", fx.Name, fx.Source, fx.Notes)
+				fmt.Printf("catalog: %s source=%s â€” %s\n", fx.Name, fx.Source, fx.Notes)
 			} else {
-				fmt.Println("note: name not in Catalog yet — add an entry in internal/dissect/fixtures.go")
+				fmt.Println("note: name not in Catalog yet â€” add an entry in internal/dissect/fixtures.go")
 			}
 			ch, err := dissect.ParseClientHello(raw)
 			if err != nil {
@@ -1162,7 +1162,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.8.11")
+			fmt.Println("coherencelab v1.8.12")
 		},
 	}
 }

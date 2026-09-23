@@ -78,9 +78,14 @@ func analyzePseudo(hb *HeaderBlock) {
 	}
 }
 
-// AkamaiH2Fingerprint builds the classic four-field HTTP/2 fingerprint string:
+// AkamaiH2Fingerprint builds a four-field HTTP/2 fingerprint string inspired by
+// public Akamai H2 fingerprint dumps:
 //
 //	SETTINGS|WINDOW_UPDATE|PRIORITY|pseudo
+//
+// Field 3 is CoherenceLab-extended: when RFC 9218 PRIORITY_UPDATE is present we
+// emit the structured value (e.g. u=0,i). Classic Akamai logs often collapsed
+// that field to 0 / 1 / a tree-hash — compare carefully against real dumps.
 //
 // Example Chrome-like (RFC 9218 era):
 //

@@ -50,7 +50,9 @@ func JA3(version uint16, cipherSuites []uint16, extensions []uint16, groups []ut
 	return hex.EncodeToString(sum[:])
 }
 
-// JA4 produces a simplified JA4-like fingerprint from ClientHello metadata.
+// JA4 produces a simplified JA4-*like* lab fingerprint — not FoxIO JA4.
+// Live-scan paths that need real JA4 should dissect the wire ClientHello
+// (internal/dissect) instead of relying on this helper.
 func JA4(version uint16, sni string, cipherSuites []uint16, extensions []uint16) string {
 	proto := "t"
 	if sni != "" {

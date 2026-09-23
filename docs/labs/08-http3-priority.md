@@ -25,8 +25,8 @@ QUIC UDP packet → decrypt → STREAM frames → HTTP/3 frames  ← this lab
 ```
 
 We parse **post-decrypt stream payloads**. Full Initial/CRYPTO/packet-number
-labs are deferred; feeding Wireshark “Decrypted QUIC” export or crafted
-fixtures is enough to learn the PRIORITY_UPDATE surface.
+dissection is Labs 09–10 (`lab quic`); this lab assumes decrypted control-stream
+bytes or crafted fixtures so you can focus on PRIORITY_UPDATE / GREASE.
 
 ## Exercise
 
