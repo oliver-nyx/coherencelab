@@ -688,7 +688,7 @@ Packet class is auto-detected unless --header-only / --tp is set.`,
 	}
 	quicCmd.Flags().StringVar(&quicHex, "hex", "", "QUIC UDP payload as hex")
 	quicCmd.Flags().StringVar(&quicBin, "bin", "", "path to QUIC UDP payload / TP blob")
-	quicCmd.Flags().StringVar(&quicFix, "fixture", "", "bundled fixture (quic_initial_chrome | quic_vn | quic_retry | quic_tp_minimal)")
+	quicCmd.Flags().StringVar(&quicFix, "fixture", "", "bundled fixture (quic_initial_chrome | quic_initial_crafted | quic_vn | quic_retry | quic_tp_minimal)")
 	quicCmd.Flags().BoolVar(&quicHeaderOnly, "header-only", false, "parse long header without decrypt")
 	quicCmd.Flags().BoolVar(&quicTPOnly, "tp", false, "treat input as raw transport_parameters blob")
 	quicCmd.Flags().StringVar(&quicODCIDHex, "odcid", "", "original DCID hex for Retry integrity check")
@@ -899,11 +899,12 @@ Static table indices differ from HPACK â€” :method GET is QPACK 17, not HPA
 	goldenCmd := &cobra.Command{
 		Use:   "golden",
 		Short: "Diff QUIC/H3 golden fingerprints (chrome-like vs naive) + cross-layer coherence",
-		Long: `Lab 11 â€” lock chrome-like QUIC TP and HTTP/3 fingerprints, then score a naive
-stack against them. Default run compares bundled chrome fixtures to minimal
-ones and checks H2/H3/QUIC family coherence.`,
+		Long: `Lab 11 — lock live Chrome QUIC TP / crafted H3 fingerprints, then score a naive
+stack against them. Default run compares bundled fixtures to minimal ones and
+prints live + teaching cross-layer coherence reports.`,
 		Example: `  coherencelab lab golden
   coherencelab lab golden --quic quic_initial_chrome --vs quic_tp_minimal
+  coherencelab lab golden --quic quic_initial_crafted --vs quic_tp_minimal
   coherencelab lab golden --h3 h3_chrome --vs-h3 h3_minimal
   coherencelab lab golden --cross`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -969,7 +970,15 @@ ones and checks H2/H3/QUIC family coherence.`,
 				if ran {
 					fmt.Fprintln(os.Stdout)
 				}
+				fmt.Fprintln(os.Stderr, "cross-layer: live H2/QUIC + crafted H3")
 				dissect.FormatCrossLayer(os.Stdout, r)
+				teach, err := dissect.AnalyzeTeachingChromeFamilyCrossLayer()
+				if err != nil {
+					return err
+				}
+				fmt.Fprintln(os.Stdout)
+				fmt.Fprintln(os.Stderr, "cross-layer: teaching fixtures (h2_continuation + quic_initial_crafted)")
+				dissect.FormatCrossLayer(os.Stdout, teach)
 				ran = true
 			}
 			if !ran {
@@ -996,9 +1005,11 @@ ones and checks H2/H3/QUIC family coherence.`,
 			fmt.Println("  coherencelab lab clienthello --fixture chrome_131")
 			fmt.Println("  coherencelab lab corpus --fixture chrome_131 --utls chrome_131")
 			fmt.Println("  coherencelab lab h2 --fixture h2_chrome")
+			fmt.Println("  coherencelab lab h2 --fixture h2_continuation")
 			fmt.Println("  coherencelab lab h3 --fixture h3_chrome")
 			fmt.Println("  coherencelab lab qpack --fixture qpack_chrome")
 			fmt.Println("  coherencelab lab quic --fixture quic_initial_chrome")
+			fmt.Println("  coherencelab lab quic --fixture quic_initial_crafted")
 			fmt.Println("  coherencelab lab quic --fixture quic_vn")
 			fmt.Println("  coherencelab lab quic --fixture quic_retry")
 			fmt.Println("  coherencelab lab golden")
@@ -1162,7 +1173,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.8.12")
+			fmt.Println("coherencelab v1.9.0")
 		},
 	}
 }

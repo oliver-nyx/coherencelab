@@ -13,8 +13,30 @@ import (
 func main() {
 	dir := "testdata/corpus"
 	_ = os.MkdirAll(dir, 0o755)
+
+	// Never clobber live captures — gen_corpus only refreshes synth/crafted bins.
+	protected := map[string]bool{
+		"clienthello-chrome_131.bin":      true,
+		"clienthello-edge_live.bin":       true,
+		"clienthello-firefox_live.bin":    true,
+		"h2-chrome-live.bin":              true,
+		"h2-edge-live.bin":                true,
+		"quic-initial-chrome-live.bin":    true,
+	}
+	write := func(path string, b []byte) {
+		base := filepath.Base(path)
+		if protected[base] {
+			fmt.Println("skip (live protected)", path)
+			return
+		}
+		if err := os.WriteFile(path, b, 0o644); err != nil {
+			panic(err)
+		}
+		fmt.Println("wrote", path, len(b), "bytes")
+	}
+
 	hellos := []struct{ id, file string }{
-		{"chrome_131", "clienthello-chrome_131_utls.bin"}, // parrot baseline â€” never overwrite live chrome_131
+		{"chrome_131", "clienthello-chrome_131_utls.bin"}, // parrot baseline — never overwrite live chrome_131
 		{"firefox_133", "clienthello-firefox_133.bin"},
 		{"safari_18", "clienthello-safari_18.bin"},
 		{"ios_14", "clienthello-safari_ios.bin"},
@@ -25,11 +47,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", h.id, err)
 			os.Exit(1)
 		}
-		path := filepath.Join(dir, h.file)
-		if err := os.WriteFile(path, raw, 0o644); err != nil {
-			panic(err)
-		}
-		fmt.Println("wrote", path, len(raw), "bytes")
+		write(filepath.Join(dir, h.file), raw)
 	}
 
 	block, err := dissect.EncodeIndexedPseudoBlock(dissect.PseudoChrome, "example.com")
@@ -53,8 +71,7 @@ func main() {
 	c1 := frame(0x9, 0x04, 1, block[2:])
 	h2path := filepath.Join(dir, "h2-chrome-like.bin")
 	buf := append(append(append(append(append(preface, sf...), wu...), pu...), h1...), c1...)
-	_ = os.WriteFile(h2path, buf, 0o644)
-	fmt.Println("wrote", h2path, len(buf), "bytes")
+	write(h2path, buf)
 
 	ffBlock, _ := dissect.EncodeIndexedPseudoBlock(dissect.PseudoFirefox, "example.com")
 	ffSettings := []byte{
@@ -64,20 +81,11 @@ func main() {
 		0x00, 0x05, 0x00, 0x00, 0x40, 0x00,
 	}
 	ff := append(append(preface, frame(0x4, 0x00, 0, ffSettings)...), frame(0x1, 0x04, 1, ffBlock)...)
-	ffPath := filepath.Join(dir, "h2-firefox-like.bin")
-	_ = os.WriteFile(ffPath, ff, 0o644)
-	fmt.Println("wrote", ffPath, len(ff), "bytes")
+	write(filepath.Join(dir, "h2-firefox-like.bin"), ff)
 
 	// HTTP/3 chrome-like control-stream frames (post-decrypt): SETTINGS+GREASE+PRIORITY_UPDATE+QPACK HEADERS
-	h3Chrome := craftH3ChromeLike()
-	h3ChromePath := filepath.Join(dir, "h3-chrome-like.bin")
-	_ = os.WriteFile(h3ChromePath, h3Chrome, 0o644)
-	fmt.Println("wrote", h3ChromePath, len(h3Chrome), "bytes")
-
-	h3Min := craftH3Minimal()
-	h3MinPath := filepath.Join(dir, "h3-minimal.bin")
-	_ = os.WriteFile(h3MinPath, h3Min, 0o644)
-	fmt.Println("wrote", h3MinPath, len(h3Min), "bytes")
+	write(filepath.Join(dir, "h3-chrome-like.bin"), craftH3ChromeLike())
+	write(filepath.Join(dir, "h3-minimal.bin"), craftH3Minimal())
 
 	for _, q := range []struct{ order, file string }{
 		{dissect.PseudoChrome, "qpack-chrome.bin"},
@@ -88,36 +96,23 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		qp := filepath.Join(dir, q.file)
-		_ = os.WriteFile(qp, qb, 0o644)
-		fmt.Println("wrote", qp, len(qb), "bytes")
+		write(filepath.Join(dir, q.file), qb)
 	}
 
 	quicInit, err := dissect.CraftChromeLikeInitial()
 	if err != nil {
 		panic(err)
 	}
-	quicPath := filepath.Join(dir, "quic-initial-chrome-like.bin")
-	_ = os.WriteFile(quicPath, quicInit, 0o644)
-	fmt.Println("wrote", quicPath, len(quicInit), "bytes")
+	write(filepath.Join(dir, "quic-initial-chrome-like.bin"), quicInit)
 
-	tpMin := dissect.CraftMinimalTransportParams()
-	tpPath := filepath.Join(dir, "quic-tp-minimal.bin")
-	_ = os.WriteFile(tpPath, tpMin, 0o644)
-	fmt.Println("wrote", tpPath, len(tpMin), "bytes")
-
-	vn := dissect.CraftVNChromeLike()
-	vnPath := filepath.Join(dir, "quic-vn-grease.bin")
-	_ = os.WriteFile(vnPath, vn, 0o644)
-	fmt.Println("wrote", vnPath, len(vn), "bytes")
+	write(filepath.Join(dir, "quic-tp-minimal.bin"), dissect.CraftMinimalTransportParams())
+	write(filepath.Join(dir, "quic-vn-grease.bin"), dissect.CraftVNChromeLike())
 
 	retry, err := dissect.CraftRetryChromeLike()
 	if err != nil {
 		panic(err)
 	}
-	retryPath := filepath.Join(dir, "quic-retry.bin")
-	_ = os.WriteFile(retryPath, retry, 0o644)
-	fmt.Println("wrote", retryPath, len(retry), "bytes")
+	write(filepath.Join(dir, "quic-retry.bin"), retry)
 }
 
 func craftH3ChromeLike() []byte {

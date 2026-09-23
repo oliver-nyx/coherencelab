@@ -187,8 +187,10 @@ type CrossLayerReport struct {
 	Coherent   bool
 }
 
-// AnalyzeChromeFamilyCrossLayer loads the crafted chrome-like fixtures and
-// reports whether GREASE / PRIORITY_UPDATE / EPS tells align.
+// AnalyzeChromeFamilyCrossLayer loads live Chrome H2/QUIC + crafted H3 and
+// reports first-flight honesty (live H2 often lacks PRIORITY_UPDATE; live QUIC
+// often lacks grease_quic_bit). For the teaching “EPS everywhere” story use
+// AnalyzeTeachingChromeFamilyCrossLayer (h2_continuation + quic_initial_crafted).
 func AnalyzeChromeFamilyCrossLayer() (*CrossLayerReport, error) {
 	_, h2raw, err := LoadFixtureBytes("h2_chrome")
 	if err != nil {
@@ -214,11 +216,49 @@ func AnalyzeChromeFamilyCrossLayer() (*CrossLayerReport, error) {
 	if err != nil {
 		return nil, err
 	}
-	return CrossLayerFromParsed(h2, h3, qi.Transport), nil
+	return CrossLayerFromParsed(h2, h3, qi.Transport, CrossLayerLive), nil
 }
 
+// AnalyzeTeachingChromeFamilyCrossLayer uses crafted chrome-like fixtures that
+// paint PRIORITY_UPDATE + grease_quic_bit together (Labs 07–11 pedagogy).
+func AnalyzeTeachingChromeFamilyCrossLayer() (*CrossLayerReport, error) {
+	_, h2raw, err := LoadFixtureBytes("h2_continuation")
+	if err != nil {
+		return nil, err
+	}
+	h2, err := ParseH2(h2raw)
+	if err != nil {
+		return nil, err
+	}
+	_, h3raw, err := LoadFixtureBytes("h3_chrome")
+	if err != nil {
+		return nil, err
+	}
+	h3, err := ParseH3(h3raw)
+	if err != nil {
+		return nil, err
+	}
+	_, qraw, err := LoadFixtureBytes("quic_initial_crafted")
+	if err != nil {
+		return nil, err
+	}
+	qi, err := DecryptInitial(qraw)
+	if err != nil {
+		return nil, err
+	}
+	return CrossLayerFromParsed(h2, h3, qi.Transport, CrossLayerTeaching), nil
+}
+
+// CrossLayerMode selects how missing EPS / grease_quic_bit are scored.
+type CrossLayerMode int
+
+const (
+	CrossLayerTeaching CrossLayerMode = iota // crafted bins — EPS + gq1 required
+	CrossLayerLive                           // live first-flight — document gaps as signals
+)
+
 // CrossLayerFromParsed builds a coherence report from already-parsed layers.
-func CrossLayerFromParsed(h2 *H2Session, h3 *H3Session, tps []TransportParam) *CrossLayerReport {
+func CrossLayerFromParsed(h2 *H2Session, h3 *H3Session, tps []TransportParam, mode CrossLayerMode) *CrossLayerReport {
 	r := &CrossLayerReport{
 		H2Akamai: h2.AkamaiH2Fingerprint(),
 		H3FP:     H3Fingerprint(h3),
@@ -238,29 +278,58 @@ func CrossLayerFromParsed(h2 *H2Session, h3 *H3Session, tps []TransportParam) *C
 			r.Conflicts = append(r.Conflicts, bad)
 		}
 	}
-	add(h2PU, "H2 PRIORITY_UPDATE present (Akamai field 3 ≠ 0)",
-		"H2 missing PRIORITY_UPDATE while claiming Chromium EPS")
-	add(h3PU, "H3 PRIORITY_UPDATE present",
-		"H3 missing PRIORITY_UPDATE — Chrome navigations usually send u=/i")
-	add(h3GF, "H3 GREASE frames present",
-		"H3 lacks GREASE frames — sterile parrot smell")
-	add(tpG, "QUIC GREASE transport parameters present",
-		"QUIC TPs lack GREASE — naive Initial")
-	add(gq, "grease_quic_bit present on Initial",
-		"grease_quic_bit absent — uncommon for Chromium QUIC")
 
-	// Cross-layer: EPS on H2 should pair with PRIORITY_UPDATE on H3 for chrome-like.
-	if h2PU != h3PU {
-		r.Conflicts = append(r.Conflicts,
-			fmt.Sprintf("PRIORITY_UPDATE mismatch across H2/H3 (h2=%v h3=%v) — broken family story", h2PU, h3PU))
-	} else {
-		r.Signals = append(r.Signals, "PRIORITY_UPDATE story consistent across H2 and H3")
-	}
-	if h3GF && tpG {
-		r.Signals = append(r.Signals, "GREASE painted on both H3 frames and QUIC TPs")
-	} else if h3GF != tpG {
-		r.Conflicts = append(r.Conflicts,
-			"GREASE on only one of H3/QUIC — mixed stack / half-upgraded impersonator")
+	switch mode {
+	case CrossLayerLive:
+		if h2PU {
+			r.Signals = append(r.Signals, "H2 PRIORITY_UPDATE present (Akamai field 3 ≠ 0)")
+		} else {
+			r.Signals = append(r.Signals,
+				"Live H2 first flight: Akamai field 3=0 — Chrome often defers PRIORITY_UPDATE until a real request (probe SETTINGS+WINDOW_UPDATE only)")
+		}
+		add(h3PU, "H3 PRIORITY_UPDATE present (crafted teaching fixture)",
+			"H3 missing PRIORITY_UPDATE — Chrome navigations usually send u=/i")
+		add(h3GF, "H3 GREASE frames present",
+			"H3 lacks GREASE frames — sterile parrot smell")
+		add(tpG, "QUIC GREASE transport parameters present",
+			"QUIC TPs lack GREASE — naive Initial")
+		if gq {
+			r.Signals = append(r.Signals, "grease_quic_bit present on Initial")
+		} else {
+			r.Signals = append(r.Signals,
+				"Live Chrome Initial: grease_quic_bit absent (gq0) — observed on Windows capture; do not lock gq1 as universal")
+		}
+		if h3GF && tpG {
+			r.Signals = append(r.Signals, "GREASE painted on both H3 frames and QUIC TPs")
+		} else if h3GF != tpG {
+			r.Conflicts = append(r.Conflicts,
+				"GREASE on only one of H3/QUIC — mixed stack / half-upgraded impersonator")
+		}
+		r.Findings = append(r.Findings,
+			"Cross-layer mixes live H2/QUIC with crafted H3 (live H3 needs a full HTTP/3 server)")
+	default: // teaching
+		add(h2PU, "H2 PRIORITY_UPDATE present (Akamai field 3 ≠ 0)",
+			"H2 missing PRIORITY_UPDATE while claiming Chromium EPS")
+		add(h3PU, "H3 PRIORITY_UPDATE present",
+			"H3 missing PRIORITY_UPDATE — Chrome navigations usually send u=/i")
+		add(h3GF, "H3 GREASE frames present",
+			"H3 lacks GREASE frames — sterile parrot smell")
+		add(tpG, "QUIC GREASE transport parameters present",
+			"QUIC TPs lack GREASE — naive Initial")
+		add(gq, "grease_quic_bit present on Initial",
+			"grease_quic_bit absent — uncommon for Chromium QUIC teaching fixture")
+		if h2PU != h3PU {
+			r.Conflicts = append(r.Conflicts,
+				fmt.Sprintf("PRIORITY_UPDATE mismatch across H2/H3 (h2=%v h3=%v) — broken family story", h2PU, h3PU))
+		} else {
+			r.Signals = append(r.Signals, "PRIORITY_UPDATE story consistent across H2 and H3")
+		}
+		if h3GF && tpG {
+			r.Signals = append(r.Signals, "GREASE painted on both H3 frames and QUIC TPs")
+		} else if h3GF != tpG {
+			r.Conflicts = append(r.Conflicts,
+				"GREASE on only one of H3/QUIC — mixed stack / half-upgraded impersonator")
+		}
 	}
 
 	r.Coherent = len(r.Conflicts) == 0
@@ -270,7 +339,11 @@ func CrossLayerFromParsed(h2 *H2Session, h3 *H3Session, tps []TransportParam) *C
 		fmt.Sprintf("QUIC TP:    %s", r.QUICTPFP),
 	)
 	if r.Coherent {
-		r.Findings = append(r.Findings, "Chrome-family fixtures are cross-layer coherent on GREASE + PRIORITY_UPDATE")
+		if mode == CrossLayerLive {
+			r.Findings = append(r.Findings, "Live Chrome first-flight H2/QUIC are coherent with documented EPS/gq timing gaps")
+		} else {
+			r.Findings = append(r.Findings, "Chrome-family fixtures are cross-layer coherent on GREASE + PRIORITY_UPDATE")
+		}
 	} else {
 		r.Findings = append(r.Findings, fmt.Sprintf("%d cross-layer conflict(s) — investigate before trusting a 'Chrome' claim", len(r.Conflicts)))
 	}

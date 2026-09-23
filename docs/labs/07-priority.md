@@ -17,7 +17,9 @@ from legacy stacks:
 | RFC 7540 | `PRIORITY` frames / dependency tree → Akamai often `"0"` or a tree hash |
 | RFC 9218 | `SETTINGS_NO_RFC7540_PRIORITIES=1` + `PRIORITY_UPDATE` with ASCII `u=` / `i` |
 
-Chrome commonly sends `PRIORITY_UPDATE` **before** `HEADERS` (servers must buffer).
+Chrome commonly sends `PRIORITY_UPDATE` **before** `HEADERS` on a real navigation
+(servers must buffer). A probe that only captures the connection preface may
+see field 3=`0` — that is honest live data, not a broken Chrome.
 
 ## Wire format (HTTP/2)
 
@@ -30,8 +32,10 @@ payload:
 
 ## Exercise
 
+Teaching fixture (EPS + CONTINUATION):
+
 ```bash
-./bin/coherencelab lab h2 --fixture h2_chrome
+./bin/coherencelab lab h2 --fixture h2_continuation
 ```
 
 Confirm:
@@ -41,7 +45,14 @@ Confirm:
 3. Akamai field 3 is `u=0,i` (not bare `0` or `1`)
 4. Full token contains `9:1|…|u=0,i|m,a,s,p`
 
-Compare Firefox fixture (no EPS frames):
+Live first-flight contrast:
+
+```bash
+./bin/coherencelab lab h2 --fixture h2_chrome
+# Akamai: …|15663105|0|  — no PRIORITY_UPDATE on probe SETTINGS flight
+```
+
+Compare Firefox teaching fixture (no EPS frames):
 
 ```bash
 ./bin/coherencelab lab h2 --fixture h2_firefox
@@ -54,6 +65,7 @@ Compare Firefox fixture (no EPS frames):
 - Structured-field parse of `u` / `i` (with an honest “minimal parser” note)
 - Fingerprint field that carries the **value**, not a boolean
 - Cross-check with `NO_RFC7540_PRIORITIES`
+- Honesty about capture timing (first flight vs request)
 
 ## Questions
 
@@ -64,4 +76,3 @@ Compare Firefox fixture (no EPS frames):
 ## Next
 
 [Lab 08 — HTTP/3 PRIORITY_UPDATE](08-http3-priority.md)
-

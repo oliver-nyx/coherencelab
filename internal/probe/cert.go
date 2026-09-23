@@ -10,6 +10,8 @@ import (
 	"encoding/pem"
 	"math/big"
 	"net"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -17,10 +19,12 @@ import (
 )
 
 var (
-	certOnce   sync.Once
-	cachedUTLS *utls.Certificate
-	cachedX509 *tls.Certificate
-	certErr    error
+	certOnce     sync.Once
+	cachedUTLS   *utls.Certificate
+	cachedX509   *tls.Certificate
+	cachedCertPEM []byte
+	cachedKeyPEM  []byte
+	certErr      error
 )
 
 func generateSelfSigned() (*utls.Certificate, error) {
@@ -31,6 +35,26 @@ func generateSelfSigned() (*utls.Certificate, error) {
 func generateSelfSignedX509() (*tls.Certificate, error) {
 	certOnce.Do(buildCerts)
 	return cachedX509, certErr
+}
+
+// WriteCertPEMs writes the probe certificate and key for browser trust import.
+func WriteCertPEMs(dir string) (certPath, keyPath string, err error) {
+	certOnce.Do(buildCerts)
+	if certErr != nil {
+		return "", "", certErr
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", "", err
+	}
+	certPath = filepath.Join(dir, "probe-cert.pem")
+	keyPath = filepath.Join(dir, "probe-key.pem")
+	if err := os.WriteFile(certPath, cachedCertPEM, 0o644); err != nil {
+		return "", "", err
+	}
+	if err := os.WriteFile(keyPath, cachedKeyPEM, 0o600); err != nil {
+		return "", "", err
+	}
+	return certPath, keyPath, nil
 }
 
 func buildCerts() {
@@ -76,4 +100,6 @@ func buildCerts() {
 	}
 	cachedUTLS = &ucert
 	cachedX509 = &xcert
+	cachedCertPEM = certPEM
+	cachedKeyPEM = keyPEM
 }

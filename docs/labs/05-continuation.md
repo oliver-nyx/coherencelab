@@ -13,10 +13,11 @@ state spans the merge. Tools that decode only the first HEADERS payload will:
 ## Exercise
 
 ```bash
-./bin/coherencelab lab h2 --fixture h2_chrome
+./bin/coherencelab lab h2 --fixture h2_continuation
 ```
 
-The `h2_chrome` fixture deliberately splits HPACK across HEADERS + CONTINUATION.
+The `h2_continuation` teaching fixture deliberately splits HPACK across
+HEADERS + CONTINUATION. (Live `h2_chrome` is SETTINGS+WINDOW_UPDATE only.)
 
 Look for:
 

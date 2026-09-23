@@ -1,4 +1,4 @@
-# CoherenceLab
+﻿# CoherenceLab
 
 [![CI](https://github.com/oliver-nyx/coherencelab/actions/workflows/ci.yml/badge.svg)](https://github.com/oliver-nyx/coherencelab/actions/workflows/ci.yml)
 [![Go Report](https://img.shields.io/badge/go-1.24+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
@@ -25,11 +25,13 @@ go build -o bin/coherencelab ./cmd/coherencelab
 
 # Bundled fixtures â€” works on a cold clone
 ./bin/coherencelab lab fixtures
-./bin/coherencelab lab clienthello --fixture chrome_131
-./bin/coherencelab lab h2 --fixture h2_chrome
+./bin/coherencelab lab clienthello --fixture chrome_131   # live-browser
+./bin/coherencelab lab h2 --fixture h2_chrome             # live H2 first flight
+./bin/coherencelab lab h2 --fixture h2_continuation       # teaching EPS/CONTINUATION
 ./bin/coherencelab lab h3 --fixture h3_chrome
-./bin/coherencelab lab quic --fixture quic_initial_chrome
+./bin/coherencelab lab quic --fixture quic_initial_chrome # live QUIC Initial
 ./bin/coherencelab lab quic --fixture quic_vn
+./bin/coherencelab lab golden
 ./bin/coherencelab lab corpus --fixture chrome_131 --utls firefox_133
 ```
 
@@ -112,7 +114,7 @@ echo $?  # 0 = pass, 1 = critical failure or score below threshold
 Or use the reusable GitHub Action:
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.8.12
+- uses: oliver-nyx/coherencelab@v1.9.0
   with:
     profile: chrome-131-win
     min-score: "90"
@@ -349,9 +351,12 @@ coherencelab/
 | CONTINUATION merge before HPACK | âœ“ Complete |
 | Capture vs uTLS corpus diff | âœ“ Complete |
 | Bundled `testdata/corpus` fixtures + `--fixture` | âœ“ Complete |
-| Live Chrome ClientHello fixture (probe capture) | âœ“ Complete |
-| Live Edge ClientHello fixture (probe capture) | âœ“ Complete |
-| QUICv1 Initial + TP GREASE lab | âœ“ Complete |
+| Live Chrome ClientHello fixture (probe capture) | ✓ Complete |
+| Live Edge / Firefox ClientHello fixtures | ✓ Complete |
+| Live Chrome/Edge HTTP/2 first-flight fixtures | ✓ Complete |
+| Live Chrome QUICv1 Initial fixture | ✓ Complete |
+| Wire-true JA3/JA4 from peeked ClientHello | ✓ Complete |
+| QUICv1 Initial + TP GREASE lab | ✓ Complete |
 | RFC 9218 PRIORITY_UPDATE + Akamai field 3 | âœ“ Complete |
 | HTTP/3 PRIORITY_UPDATE (0xF0700/0xF0701) + GREASE | âœ“ Complete |
 | RE labs (`lab â€¦` through H3 priority / fixtures) | âœ“ Complete |
@@ -396,7 +401,12 @@ coherencelab/
 - [x] Live Firefox ClientHello fixture (Windows; Safari still needs macOS/iOS)
 - [x] QUIC/H3 golden fingerprints + cross-layer coherence (`lab golden`)
 - [x] QPACK Encoded Field Section decode (Lab 12; static / RIC=0)
-- [ ] Live Safari ClientHello (requires macOS/iOS â€” deferred)
+- [x] Live Chrome/Edge HTTP/2 first-flight fixtures + honest EPS timing notes
+- [x] Live Chrome QUICv1 Initial fixture (wire-true TP golden; gq0 observed)
+- [x] Wire-true JA3/JA4 from peeked ClientHello bytes
+- [ ] Live Firefox H2 (needs trusted probe cert)
+- [ ] Live H3 stream capture (needs full HTTP/3 server)
+- [ ] Live Safari ClientHello (requires macOS/iOS — deferred)
 
 ## Docs
 

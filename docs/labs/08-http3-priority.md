@@ -49,11 +49,17 @@ Naive contrast:
 # Finding: No GREASE frames…
 ```
 
-Side-by-side with H2:
+Side-by-side with H2 teaching fixture (EPS):
+
+```bash
+./bin/coherencelab lab h2 --fixture h2_continuation
+./bin/coherencelab lab h3 --fixture h3_chrome
+```
+
+Live H2 first flight (no PRIORITY_UPDATE yet):
 
 ```bash
 ./bin/coherencelab lab h2 --fixture h2_chrome
-./bin/coherencelab lab h3 --fixture h3_chrome
 ```
 
 ## What high-level RE looks for

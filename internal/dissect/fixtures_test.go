@@ -91,8 +91,8 @@ func TestLiveFirefoxVsParrot(t *testing.T) {
 }
 
 
-func TestLoadFixtureH2ChromeContinuation(t *testing.T) {
-	_, raw, err := LoadFixtureBytes("h2_chrome")
+func TestLoadFixtureH2Continuation(t *testing.T) {
+	_, raw, err := LoadFixtureBytes("h2_continuation")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,27 @@ func TestLoadFixtureH2ChromeContinuation(t *testing.T) {
 		}
 	}
 	if !hasCont {
-		t.Fatal("expected CONTINUATION in h2_chrome fixture")
+		t.Fatal("expected CONTINUATION in h2_continuation fixture")
+	}
+}
+
+func TestLoadFixtureH2ChromeLive(t *testing.T) {
+	fx, raw, err := LoadFixtureBytes("h2_chrome")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fx.Source != "live-browser" {
+		t.Fatalf("source=%s", fx.Source)
+	}
+	s, err := ParseH2(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.HasPreface {
+		t.Fatal("expected client preface")
+	}
+	if len(s.Frames) < 2 {
+		t.Fatalf("expected SETTINGS+WINDOW_UPDATE, frames=%d", len(s.Frames))
 	}
 }
 

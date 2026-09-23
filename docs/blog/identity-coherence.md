@@ -1,4 +1,4 @@
-# Why Your HTTP Client Gets Blocked: Identity Coherence
+﻿# Why Your HTTP Client Gets Blocked: Identity Coherence
 
 *A technical write-up for [antibot.blog](https://antibot.blog) / [debug.cat](https://debug.cat) â€” suitable for republication with attribution.*
 
@@ -146,7 +146,7 @@ go build -o bin/coherencelab ./cmd/coherencelab
 GitHub Actions (marketplace-style composite action ships in the same repo):
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.8.12
+- uses: oliver-nyx/coherencelab@v1.9.0
   with:
     profile: chrome-131-win
     min-score: "90"

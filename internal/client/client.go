@@ -14,6 +14,7 @@ import (
 	utls "github.com/refraction-networking/utls"
 	"golang.org/x/net/http2"
 
+	"github.com/oliver-nyx/coherencelab/internal/dissect"
 	"github.com/oliver-nyx/coherencelab/internal/h2wire"
 	"github.com/oliver-nyx/coherencelab/internal/profile"
 	"github.com/oliver-nyx/coherencelab/internal/signal"
@@ -69,7 +70,8 @@ func BuildTransport(cfg Config) (*http.Transport, *DialResult, error) {
 		if err != nil {
 			return nil, err
 		}
-		tlsConn := utls.UClient(conn, &utls.Config{
+		capConn := &writeHelloConn{Conn: conn}
+		tlsConn := utls.UClient(capConn, &utls.Config{
 			ServerName:         host,
 			InsecureSkipVerify: cfg.Insecure,
 			NextProtos:         cfg.Profile.TLS.ALPN,
@@ -88,9 +90,21 @@ func BuildTransport(cfg Config) (*http.Transport, *DialResult, error) {
 			UTLSClientID: cfg.Profile.TLS.UTLSClientID,
 			SNI:           host,
 		}
-		if spec, err := utls.UTLSIdToSpec(helloID); err == nil {
-			tlsObs.JA3 = tlsfp.JA3(state.Version, spec.CipherSuites, nil, nil, []uint8{0})
-			tlsObs.JA4 = tlsfp.JA4(state.Version, host, spec.CipherSuites, nil)
+		// Prefer JA3/JA4 from the actual ClientHello bytes written on the wire.
+		if hello := capConn.ClientHello(); len(hello) > 0 {
+			if ch, err := dissect.ParseClientHello(hello); err == nil {
+				tlsObs.JA3 = ch.JA3Hash()
+				tlsObs.JA4 = ch.JA4()
+			}
+		}
+		if tlsObs.JA3 == "" {
+			// Fallback only if capture failed — still better than nil extensions.
+			if raw, err := dissect.SynthClientHello(cfg.Profile.TLS.UTLSClientID, host); err == nil {
+				if ch, err := dissect.ParseClientHello(raw); err == nil {
+					tlsObs.JA3 = ch.JA3Hash()
+					tlsObs.JA4 = ch.JA4()
+				}
+			}
 		}
 		result.mu.Lock()
 		result.TLS = tlsObs

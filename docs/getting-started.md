@@ -1,4 +1,4 @@
-# Getting Started with CoherenceLab
+﻿# Getting Started with CoherenceLab
 
 ## The problem
 
@@ -77,7 +77,7 @@ You can also probe public fingerprint endpoints (use responsibly):
 ### Option A â€” marketplace-style composite action
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.8.12
+- uses: oliver-nyx/coherencelab@v1.9.0
   with:
     profile: chrome-131-win
     min-score: "90"

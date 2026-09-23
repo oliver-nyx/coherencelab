@@ -15,9 +15,11 @@ import (
 	"time"
 
 	"github.com/oliver-nyx/coherencelab/internal/capture"
+	"github.com/oliver-nyx/coherencelab/internal/dissect"
 	"github.com/oliver-nyx/coherencelab/internal/h2wire"
 	"github.com/oliver-nyx/coherencelab/internal/signal"
 	"github.com/oliver-nyx/coherencelab/internal/tlsfp"
+	"golang.org/x/net/http2"
 )
 
 // Observation is a recorded probe result from a client connection.
@@ -34,7 +36,9 @@ type Observation struct {
 // Server is a TLS probe server that captures client identity signals.
 type Server struct {
 	Addr        string
-	CaptureDir  string // if set, /api/capture writes JSON + profile YAML + ClientHello.bin here
+	CaptureDir  string // if set, writes ClientHello / H2 / QUIC bins here
+	EnableH2    bool   // negotiate h2 ALPN (default true) for live SETTINGS capture
+	EnableQUIC  bool   // UDP Initial capture + Alt-Svc (default true when CaptureDir set)
 	mu          sync.RWMutex
 	logs        []Observation
 	maxLogs     int
@@ -42,15 +46,19 @@ type Server struct {
 	helloByAddr map[string][]byte
 	lastCapture *capture.Input
 	lastHello   []byte
+	lastH2Raw   []byte
 	server      *http.Server
+	quicStop    context.CancelFunc
 }
 
 // New creates a probe server.
 func New(addr string) *Server {
 	return &Server{
-		Addr:        addr,
-		maxLogs:     200,
-		h2ByAddr:    make(map[string]*signal.H2Observation),
+		Addr:       addr,
+		EnableH2:   true,
+		EnableQUIC: true,
+		maxLogs:    200,
+		h2ByAddr:   make(map[string]*signal.H2Observation),
 		helloByAddr: make(map[string][]byte),
 	}
 }
@@ -90,25 +98,46 @@ func (s *Server) Start() error {
 	if err != nil {
 		return fmt.Errorf("tls cert: %w", err)
 	}
-	tlsLn := tls.NewListener(rawLn, &tls.Config{
+	nextProtos := []string{"http/1.1"}
+	if s.EnableH2 {
+		nextProtos = []string{"h2", "http/1.1"}
+	}
+	tlsCfg := &tls.Config{
 		Certificates: []tls.Certificate{*tlsCert},
-		NextProtos:   []string{"http/1.1"}, // http/1.1-only: reliable ClientHello capture from browsers (h2 wrapper can abort some Chrome builds)
+		NextProtos:   nextProtos,
 		MinVersion:   tls.VersionTLS12,
-	})
+	}
+	tlsLn := tls.NewListener(rawLn, tlsCfg)
 
 	s.server = &http.Server{
 		Handler:      mux,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
+		TLSConfig:    tlsCfg,
 		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
 			return context.WithValue(ctx, connContextKey{}, c)
 		},
+	}
+	if s.EnableH2 {
+		if err := http2.ConfigureServer(s.server, &http2.Server{}); err != nil {
+			return fmt.Errorf("http2: %w", err)
+		}
 	}
 	go func() {
 		if err := s.server.Serve(&h2CaptureListener{Listener: tlsLn, srv: s}); err != nil && err != http.ErrServerClosed {
 			log.Printf("probe server error: %v", err)
 		}
 	}()
+	if s.EnableQUIC && s.CaptureDir != "" {
+		if err := s.startQUICCapture(*tlsCert); err != nil {
+			log.Printf("quic capture disabled: %v", err)
+		}
+	}
+	if s.CaptureDir != "" {
+		if _, _, err := WriteCertPEMs(s.CaptureDir); err == nil {
+			log.Printf("wrote probe cert PEMs to %s (import into Firefox to complete H2 capture)", s.CaptureDir)
+		}
+	}
 	return nil
 }
 
@@ -184,6 +213,9 @@ func (c *h2TrackedConn) Close() error {
 		if obs := cap.Observation(); obs != nil {
 			c.srv.storeH2(c.RemoteAddr().String(), obs)
 		}
+		if raw := cap.RawClientFlight(); len(raw) > 0 {
+			c.srv.persistH2Raw(raw)
+		}
 	}
 	return c.Conn.Close()
 }
@@ -192,6 +224,21 @@ func (s *Server) storeH2(addr string, obs *signal.H2Observation) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.h2ByAddr[addr] = obs
+}
+
+func (s *Server) persistH2Raw(raw []byte) {
+	s.mu.Lock()
+	s.lastH2Raw = append([]byte(nil), raw...)
+	dir := s.CaptureDir
+	s.mu.Unlock()
+	if dir == "" || len(raw) == 0 {
+		return
+	}
+	_ = os.MkdirAll(dir, 0o755)
+	path := filepath.Join(dir, fmt.Sprintf("probe-%d.h2.bin", time.Now().UnixNano()))
+	if err := os.WriteFile(path, raw, 0o644); err == nil {
+		log.Printf("wrote H2 client flight %d bytes → %s", len(raw), path)
+	}
 }
 
 func (s *Server) takeH2(addr string) *signal.H2Observation {
@@ -243,6 +290,9 @@ func (s *Server) LastClientHello() []byte {
 
 // Stop gracefully shuts down the server.
 func (s *Server) Stop(ctx context.Context) error {
+	if s.quicStop != nil {
+		s.quicStop()
+	}
 	if s.server == nil {
 		return nil
 	}
@@ -289,11 +339,26 @@ func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
 	if r.TLS != nil {
 		EnrichWithTLS(&obs, *r.TLS)
 	}
+	if hello := s.helloFromRequest(r); len(hello) > 0 && obs.TLS != nil {
+		if ch, err := dissect.ParseClientHello(hello); err == nil {
+			obs.TLS.JA3 = ch.JA3Hash()
+			obs.TLS.JA4 = ch.JA4()
+		}
+	}
 	if h2 := s.h2FromRequest(r); h2 != nil {
 		obs.H2 = h2
 	}
-	// ClientHello bytes are persisted in storeHello as soon as the TLS record is
-	// peeked (needed when Firefox aborts on the self-signed cert before /probe).
+	// Advertise HTTP/3 so browsers send a real QUIC Initial to our UDP capture port.
+	if s.EnableQUIC && s.CaptureDir != "" {
+		host, port, err := net.SplitHostPort(s.Addr)
+		if err == nil {
+			if host == "" || host == "0.0.0.0" {
+				host = "127.0.0.1"
+			}
+			w.Header().Set("Alt-Svc", fmt.Sprintf(`h3=":%s"; ma=60`, port))
+			_ = host
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

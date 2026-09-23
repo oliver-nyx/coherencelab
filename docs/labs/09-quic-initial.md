@@ -34,16 +34,18 @@ UDP datagram
 
 ```bash
 ./bin/coherencelab lab quic --fixture quic_initial_chrome
+./bin/coherencelab lab quic --fixture quic_initial_crafted
 ./bin/coherencelab lab quic --fixture quic_tp_minimal --tp
 ./bin/coherencelab lab quic --fixture quic_initial_chrome --header-only
 ```
 
 Confirm:
 
-1. Packet decrypts (PN printed, CRYPTO present)
+1. Live packet decrypts (PN printed, CRYPTO present, GREASE TPs)
 2. Embedded ClientHello SNI = `example.com`
-3. Transport params include GREASE + `grease_quic_bit`
-4. Minimal TP fixture has **no** GREASE entries
+3. Live TP golden often ends `|g1|gq0` — `grease_quic_bit` is **not** universal on real Chrome
+4. Crafted fixture locks `|g1|gq1` for Lab 10 Retry ODCID / teaching
+5. Minimal TP fixture has **no** GREASE entries
 
 ## Capture your own
 

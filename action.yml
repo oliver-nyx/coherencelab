@@ -1,4 +1,4 @@
-name: CoherenceLab Scan
+﻿name: CoherenceLab Scan
 description: Validate browser identity coherence (TLS, HTTP/2, headers, Client Hints) in CI
 author: oliver-nyx
 branding:
@@ -32,7 +32,7 @@ inputs:
   version:
     description: CoherenceLab release tag or branch to install (ignored when local-source is set)
     required: false
-    default: "v1.8.12"
+    default: "v1.9.0"
   local-source:
     description: Path to a local CoherenceLab checkout (relative to workspace). Skips git clone â€” use "." when dogfooding this repo.
     required: false
