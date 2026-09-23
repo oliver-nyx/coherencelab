@@ -12,7 +12,7 @@ import (
 // Fixture describes a checked-in corpus sample under testdata/corpus.
 type Fixture struct {
 	Name        string // e.g. chrome_131
-	Kind        string // clienthello | h2 | h3
+	Kind        string // clienthello | h2 | h3 | quic | quic_tp
 	File        string // basename
 	UTLSClientID string // for ClientHello fixtures / corpus parrot default
 	Source      string // how it was produced
@@ -41,6 +41,10 @@ var Catalog = []Fixture{
 		Source: "crafted", Notes: "H3 SETTINGS(+GREASE)+GREASE frame+PRIORITY_UPDATE(0xF0700,u=0,i)+HEADERS stub"},
 	{Name: "h3_minimal", Kind: "h3", File: "h3-minimal.bin",
 		Source: "crafted", Notes: "H3 SETTINGS only — no GREASE, no PRIORITY_UPDATE (naive stack)"},
+	{Name: "quic_initial_chrome", Kind: "quic", File: "quic-initial-chrome-like.bin",
+		Source: "crafted", Notes: "QUICv1 protected Initial + CRYPTO ClientHello + TPs (GREASE + grease_quic_bit), padded ≥1200"},
+	{Name: "quic_tp_minimal", Kind: "quic_tp", File: "quic-tp-minimal.bin",
+		Source: "crafted", Notes: "Raw transport_parameters blob without GREASE (naive stack)"},
 }
 
 // CorpusDir resolves testdata/corpus relative to this package or cwd.

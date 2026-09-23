@@ -28,12 +28,13 @@ go build -o bin/coherencelab ./cmd/coherencelab
 ./bin/coherencelab lab clienthello --fixture chrome_131
 ./bin/coherencelab lab h2 --fixture h2_chrome
 ./bin/coherencelab lab h3 --fixture h3_chrome
+./bin/coherencelab lab quic --fixture quic_initial_chrome
 ./bin/coherencelab lab corpus --fixture chrome_131 --utls firefox_133
 ```
 
 Read the code while you run it:
 
-- [`internal/dissect/`](internal/dissect/) — raw TLS + HTTP/2 + HTTP/3 parsers with RE annotations
+- [`internal/dissect/`](internal/dissect/) — raw TLS + HTTP/2 + HTTP/3 + QUIC parsers with RE annotations
 - [`testdata/corpus/`](testdata/corpus/) — checked-in wire samples (honestly labeled)
 - [`docs/labs/01-clienthello.md`](docs/labs/01-clienthello.md)
 - [`docs/labs/02-http2-wire.md`](docs/labs/02-http2-wire.md)
@@ -43,6 +44,7 @@ Read the code while you run it:
 - [`docs/labs/06-corpus-diff.md`](docs/labs/06-corpus-diff.md)
 - [`docs/labs/07-priority.md`](docs/labs/07-priority.md)
 - [`docs/labs/08-http3-priority.md`](docs/labs/08-http3-priority.md)
+- [`docs/labs/09-quic-initial.md`](docs/labs/09-quic-initial.md)
 
 ## Coherence scoring (supporting tool)
 
@@ -338,12 +340,14 @@ coherencelab/
 | TLS ClientHello dissector (GREASE, order, ALPS, ECH) | ✓ Complete |
 | HTTP/2 frame dissector (SETTINGS / WINDOW_UPDATE / PRIORITY_UPDATE) | ✓ Complete |
 | HTTP/3 frame dissector (SETTINGS / GREASE / PRIORITY_UPDATE) | ✓ Complete |
+| QUIC Initial decrypt + transport parameters | ✓ Complete |
 | HPACK + pseudo-header order (Akamai field 4) | ✓ Complete |
 | ClientHello extension permutation entropy lab | ✓ Complete |
 | CONTINUATION merge before HPACK | ✓ Complete |
 | Capture vs uTLS corpus diff | ✓ Complete |
 | Bundled `testdata/corpus` fixtures + `--fixture` | ✓ Complete |
 | Live Chrome ClientHello fixture (probe capture) | ✓ Complete |
+| QUICv1 Initial + TP GREASE lab | ✓ Complete |
 | RFC 9218 PRIORITY_UPDATE + Akamai field 3 | ✓ Complete |
 | HTTP/3 PRIORITY_UPDATE (0xF0700/0xF0701) + GREASE | ✓ Complete |
 | RE labs (`lab …` through H3 priority / fixtures) | ✓ Complete |
@@ -382,8 +386,9 @@ coherencelab/
 - [x] PRIORITY_UPDATE / RFC 9218 (Akamai field 3)
 - [x] HTTP/3 / QUIC PRIORITY_UPDATE lab
 - [x] Replace uTLS-synth ClientHello fixtures with live browser pcaps
-- [ ] QUIC Initial / transport-parameter dissection lab
+- [x] QUIC Initial / transport-parameter dissection lab
 - [ ] Live Firefox / Safari ClientHello fixtures (Chrome live is bundled)
+- [ ] QUIC Retry / Version Negotiation lab
 
 ## Docs
 
@@ -396,6 +401,7 @@ coherencelab/
 - [Lab 06: Capture vs uTLS corpus diff](docs/labs/06-corpus-diff.md)
 - [Lab 07: RFC 9218 PRIORITY_UPDATE](docs/labs/07-priority.md)
 - [Lab 08: HTTP/3 PRIORITY_UPDATE](docs/labs/08-http3-priority.md)
+- [Lab 09: QUIC Initial & transport parameters](docs/labs/09-quic-initial.md)
 - [GitHub Action](docs/github-action.md)
 - [Blog: Why your HTTP client gets blocked](docs/blog/identity-coherence.md)
 - [JS runtime probes](docs/adapters/js-runtime.md)

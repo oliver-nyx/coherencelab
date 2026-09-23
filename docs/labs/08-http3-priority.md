@@ -72,4 +72,4 @@ Side-by-side with H2:
 ## Next
 
 Live Firefox / Safari ClientHello fixtures (Chrome is bundled), or
-[QUIC Initial / transport-parameter dissection](../README.md#roadmap).
+[Lab 09 — QUIC Initial & transport parameters](09-quic-initial.md).

@@ -570,6 +570,79 @@ with RFC 9218 H3 types 0xF0700 / 0xF0701.`,
 	h3Cmd.Flags().StringVar(&h3Bin, "bin", "", "path to decrypted HTTP/3 stream bytes")
 	h3Cmd.Flags().StringVar(&h3Fix, "fixture", "", "bundled testdata/corpus name (e.g. h3_chrome)")
 
+	var (
+		quicHex        string
+		quicBin        string
+		quicFix        string
+		quicHeaderOnly bool
+		quicTPOnly     bool
+	)
+	quicCmd := &cobra.Command{
+		Use:   "quic",
+		Short: "Dissect QUIC Initial packets and transport parameters",
+		Long: `Parse QUICv1 client Initial UDP payloads (RFC 9000/9001):
+
+  long header → header protection → AEAD → CRYPTO → ClientHello → TPs
+
+Initial decryption uses the RFC 9001 salt + DCID. For header-only parses
+(unknown versions / grease), pass --header-only. For a raw TP blob, --tp.`,
+		Example: `  coherencelab lab quic --fixture quic_initial_chrome
+  coherencelab lab quic --fixture quic_tp_minimal --tp
+  coherencelab lab quic --bin capture.udp --header-only`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var raw []byte
+			var err error
+			var kindHint string
+			switch {
+			case quicFix != "":
+				fx, b, e := dissect.LoadFixtureBytes(quicFix)
+				if e != nil {
+					return e
+				}
+				kindHint = fx.Kind
+				fmt.Fprintf(os.Stderr, "fixture %s (%s): %s\n", fx.Name, fx.Source, fx.Notes)
+				raw = b
+			case quicBin != "":
+				raw, err = os.ReadFile(quicBin)
+			case quicHex != "":
+				raw, err = decodeHex(quicHex)
+			default:
+				return fmt.Errorf("provide --fixture, --hex, or --bin")
+			}
+			if err != nil {
+				return err
+			}
+			if quicTPOnly || kindHint == "quic_tp" {
+				tps, err := dissect.ParseTransportParameters(raw)
+				if err != nil {
+					return err
+				}
+				fmt.Fprintln(os.Stdout, "═══ QUIC transport parameters ═══")
+				dissect.FormatTransportParameters(os.Stdout, tps)
+				return nil
+			}
+			if quicHeaderOnly {
+				h, err := dissect.ParseQUICLongHeader(raw)
+				if err != nil {
+					return err
+				}
+				dissect.FormatQUICLongHeader(os.Stdout, h)
+				return nil
+			}
+			d, err := dissect.DecryptInitial(raw)
+			if err != nil {
+				return err
+			}
+			dissect.FormatQUICInitial(os.Stdout, d)
+			return nil
+		},
+	}
+	quicCmd.Flags().StringVar(&quicHex, "hex", "", "QUIC UDP payload as hex")
+	quicCmd.Flags().StringVar(&quicBin, "bin", "", "path to QUIC UDP payload / TP blob")
+	quicCmd.Flags().StringVar(&quicFix, "fixture", "", "bundled fixture (quic_initial_chrome | quic_tp_minimal)")
+	quicCmd.Flags().BoolVar(&quicHeaderOnly, "header-only", false, "parse long header without decrypt")
+	quicCmd.Flags().BoolVar(&quicTPOnly, "tp", false, "treat input as raw transport_parameters blob")
+
 	headersCmd := &cobra.Command{
 		Use:   "headers",
 		Short: "Decode an HPACK header block and classify pseudo-header order",
@@ -708,6 +781,7 @@ with RFC 9218 H3 types 0xF0700 / 0xF0701.`,
 			fmt.Println("  coherencelab lab corpus --fixture chrome_131 --utls chrome_131")
 			fmt.Println("  coherencelab lab h2 --fixture h2_chrome")
 			fmt.Println("  coherencelab lab h3 --fixture h3_chrome")
+			fmt.Println("  coherencelab lab quic --fixture quic_initial_chrome")
 			fmt.Println("  coherencelab lab ingest-hello --bin captured/x.clienthello.bin --name chrome_131")
 			return nil
 		},
@@ -768,6 +842,7 @@ chrome_131_utls.`,
 	cmd.AddCommand(tlsCmd)
 	cmd.AddCommand(h2Cmd)
 	cmd.AddCommand(h3Cmd)
+	cmd.AddCommand(quicCmd)
 	cmd.AddCommand(headersCmd)
 	cmd.AddCommand(permCmd)
 	cmd.AddCommand(corpusCmd)
@@ -865,7 +940,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.8.6")
+			fmt.Println("coherencelab v1.8.7")
 		},
 	}
 }

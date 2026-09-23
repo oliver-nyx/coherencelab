@@ -12,6 +12,8 @@ Checked-in wire samples so labs work on a cold clone — **no Wireshark required
 | `h2-chrome-like.bin` | Crafted Chromium-like H2 session (SETTINGS / WINDOW_UPDATE / PRIORITY_UPDATE / CONTINUATION) |
 | `h2-firefox-like.bin` | Crafted Firefox-like H2 session |
 | `h3-chrome-like.bin` / `h3-minimal.bin` | Crafted HTTP/3 control-stream frames |
+| `quic-initial-chrome-like.bin` | Crafted QUICv1 protected Initial (CRYPTO + TPs + GREASE), padded ≥1200 |
+| `quic-tp-minimal.bin` | Raw transport_parameters without GREASE |
 
 ## Regenerate synth fixtures
 
@@ -19,7 +21,7 @@ Checked-in wire samples so labs work on a cold clone — **no Wireshark required
 go run ./tools/gen_corpus.go
 ```
 
-This **never overwrites** `clienthello-chrome_131.bin` (live). It refreshes `*_utls` / Firefox / Safari / H2 / H3 crafted bins.
+This **never overwrites** `clienthello-chrome_131.bin` (live). It refreshes `*_utls` / Firefox / Safari / H2 / H3 / QUIC crafted bins.
 
 ## Capture a live ClientHello
 
@@ -45,4 +47,6 @@ coherencelab lab clienthello --fixture chrome_131_utls     # parrot
 coherencelab lab corpus --fixture chrome_131 --utls chrome_131
 coherencelab lab h2 --fixture h2_chrome
 coherencelab lab h3 --fixture h3_chrome
+coherencelab lab quic --fixture quic_initial_chrome
+coherencelab lab quic --fixture quic_tp_minimal --tp
 ```

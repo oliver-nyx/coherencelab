@@ -78,6 +78,19 @@ func main() {
 	h3MinPath := filepath.Join(dir, "h3-minimal.bin")
 	_ = os.WriteFile(h3MinPath, h3Min, 0o644)
 	fmt.Println("wrote", h3MinPath, len(h3Min), "bytes")
+
+	quicInit, err := dissect.CraftChromeLikeInitial()
+	if err != nil {
+		panic(err)
+	}
+	quicPath := filepath.Join(dir, "quic-initial-chrome-like.bin")
+	_ = os.WriteFile(quicPath, quicInit, 0o644)
+	fmt.Println("wrote", quicPath, len(quicInit), "bytes")
+
+	tpMin := dissect.CraftMinimalTransportParams()
+	tpPath := filepath.Join(dir, "quic-tp-minimal.bin")
+	_ = os.WriteFile(tpPath, tpMin, 0o644)
+	fmt.Println("wrote", tpPath, len(tpMin), "bytes")
 }
 
 func craftH3ChromeLike() []byte {
