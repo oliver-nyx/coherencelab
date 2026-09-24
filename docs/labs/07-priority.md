@@ -17,22 +17,27 @@ from legacy stacks:
 | RFC 7540 | `PRIORITY` frames / dependency tree → Akamai often `"0"` or a tree hash |
 | RFC 9218 | `SETTINGS_NO_RFC7540_PRIORITIES=1` + `PRIORITY_UPDATE` with ASCII `u=` / `i` |
 
-Chrome commonly sends `PRIORITY_UPDATE` **before** `HEADERS` on a real navigation
-(servers must buffer). A probe that only captures the connection preface may
-see field 3=`0` — that is honest live data, not a broken Chrome.
+Chrome commonly signals RFC 9218 priority via the **`priority` HTTP header**
+(`u=0, i`) on real navigations (Chrome 124+). Older teaching material and some
+impersonators still emit hop-by-hop `PRIORITY_UPDATE` frames instead. A probe that
+only captures the connection preface (SETTINGS+WINDOW_UPDATE) will see field 3=`0`
+— that is honest preface-only data, not a broken Chrome.
 
 ## Wire format (HTTP/2)
 
 ```
-header stream id = 0 (REQUIRED)
+header stream id = 0 (REQUIRED for PRIORITY_UPDATE)
 payload:
   prioritized_stream_id : u31
   priority_field_value  : ASCII Structured Fields (e.g. "u=0, i")
 ```
 
+Live Chrome also (or instead) places the same structured fields in a request
+header: `priority: u=0, i`.
+
 ## Exercise
 
-Teaching fixture (EPS + CONTINUATION):
+Teaching fixture (EPS frame + CONTINUATION):
 
 ```bash
 ./bin/coherencelab lab h2 --fixture h2_continuation
@@ -42,17 +47,19 @@ Confirm:
 
 1. SETTINGS includes `NO_RFC7540_PRIORITIES = 1`
 2. A `PRIORITY_UPDATE` frame with `stream=1 value="u=0, i"`
-3. Akamai field 3 is `u=0,i` (not bare `0` or `1`)
+3. Akamai field 3 is `u=0,i` (frame form)
 4. Full token contains `9:1|…|u=0,i|m,a,s,p`
 
-Live first-flight contrast:
+Live request-flight contrast (Priority **header**, not frame):
 
 ```bash
 ./bin/coherencelab lab h2 --fixture h2_chrome
-# Akamai: …|15663105|0|  — no PRIORITY_UPDATE on probe SETTINGS flight
+# Akamai: …|15663105|hdr:u=0,i|m,a,s,p
+./bin/coherencelab lab h2 --fixture h2_edge
+# same Chromium-family Akamai shape
 ```
 
-Compare live Firefox (no EPS on first flight; different SETTINGS/window):
+Compare live Firefox preface (no request HEADERS in bundled fixture yet):
 
 ```bash
 ./bin/coherencelab lab h2 --fixture h2_firefox

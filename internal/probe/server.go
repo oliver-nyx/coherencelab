@@ -128,9 +128,15 @@ func (s *Server) Start() error {
 		if err := http2.ConfigureServer(s.server, &http2.Server{}); err != nil {
 			return fmt.Errorf("http2: %w", err)
 		}
+		// net/http only hands ALPN "h2" to TLSNextProto when Accept returns
+		// *tls.Conn. Wrapping the tls.Conn in CaptureConn breaks that assert and
+		// the server falls through to HTTP/1 — capturing preface+SETTINGS only.
+		// Intercept TLSNextProto and ServeConn on a CaptureConn wrapper instead.
+		s.installH2CaptureHandler()
 	}
 	go func() {
-		if err := s.server.Serve(&h2CaptureListener{Listener: tlsLn, srv: s}); err != nil && err != http.ErrServerClosed {
+		// Must Serve *tls.Conn (from tls.NewListener), not a wrapper type.
+		if err := s.server.Serve(tlsLn); err != nil && err != http.ErrServerClosed {
 			log.Printf("probe server error: %v", err)
 		}
 	}()
@@ -145,6 +151,23 @@ func (s *Server) Start() error {
 		}
 	}
 	return nil
+}
+
+// installH2CaptureHandler wraps the ConfigureServer "h2" hook so client frames
+// (SETTINGS → WINDOW_UPDATE → PRIORITY_UPDATE → HEADERS) are recorded.
+func (s *Server) installH2CaptureHandler() {
+	h2s := &http2.Server{}
+	s.server.TLSNextProto["h2"] = func(hs *http.Server, c *tls.Conn, h http.Handler) {
+		cap := h2wire.NewCaptureConn(c)
+		tracked := &h2TrackedConn{Conn: cap, srv: s}
+		ctx := context.WithValue(context.Background(), connContextKey{}, tracked)
+		defer tracked.Close()
+		h2s.ServeConn(cap, &http2.ServeConnOpts{
+			Context:    ctx,
+			Handler:    h,
+			BaseConfig: hs,
+		})
+	}
 }
 
 type connContextKey struct{}
@@ -193,6 +216,32 @@ func (c *helloTrackedConn) maybeStore() {
 	c.srv.storeHello(c.RemoteAddr().String(), hello)
 }
 
+type h2TrackedConn struct {
+	net.Conn
+	srv      *Server
+	closed   bool
+	closeMu  sync.Mutex
+}
+
+func (c *h2TrackedConn) Close() error {
+	c.closeMu.Lock()
+	defer c.closeMu.Unlock()
+	if c.closed {
+		return nil
+	}
+	c.closed = true
+	if cap, ok := c.Conn.(*h2wire.CaptureConn); ok {
+		if obs := cap.Observation(); obs != nil {
+			c.srv.storeH2(c.RemoteAddr().String(), obs)
+		}
+		if raw := cap.RawClientFlight(); len(raw) > 0 {
+			c.srv.persistH2Raw(raw)
+		}
+	}
+	return c.Conn.Close()
+}
+
+// h2CaptureListener kept for tests / callers that still wrap Accept.
 type h2CaptureListener struct {
 	net.Listener
 	srv *Server
@@ -207,23 +256,6 @@ func (l *h2CaptureListener) Accept() (net.Conn, error) {
 		Conn: h2wire.NewCaptureConn(conn),
 		srv:  l.srv,
 	}, nil
-}
-
-type h2TrackedConn struct {
-	net.Conn
-	srv *Server
-}
-
-func (c *h2TrackedConn) Close() error {
-	if cap, ok := c.Conn.(*h2wire.CaptureConn); ok {
-		if obs := cap.Observation(); obs != nil {
-			c.srv.storeH2(c.RemoteAddr().String(), obs)
-		}
-		if raw := cap.RawClientFlight(); len(raw) > 0 {
-			c.srv.persistH2Raw(raw)
-		}
-	}
-	return c.Conn.Close()
 }
 
 func (s *Server) storeH2(addr string, obs *signal.H2Observation) {
@@ -363,7 +395,7 @@ func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
 	// After HEADERS are in, give the client a beat to flush PRIORITY_UPDATE, then
 	// persist the longest H2 flight seen on this conn.
 	if c, ok := r.Context().Value(connContextKey{}).(*h2TrackedConn); ok {
-		time.Sleep(30 * time.Millisecond)
+		time.Sleep(150 * time.Millisecond)
 		if cap, ok := c.Conn.(*h2wire.CaptureConn); ok {
 			if raw := cap.RawClientFlight(); len(raw) > 0 {
 				s.persistH2Raw(raw)

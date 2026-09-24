@@ -83,11 +83,18 @@ func analyzePseudo(hb *HeaderBlock) {
 //
 //	SETTINGS|WINDOW_UPDATE|PRIORITY|pseudo
 //
-// Field 3 is CoherenceLab-extended: when RFC 9218 PRIORITY_UPDATE is present we
-// emit the structured value (e.g. u=0,i). Classic Akamai logs often collapsed
-// that field to 0 / 1 / a tree-hash — compare carefully against real dumps.
+// Field 3 is CoherenceLab-extended for RFC 9218:
 //
-// Example Chrome-like (RFC 9218 era):
+//	u=0,i       — PRIORITY_UPDATE frame (teaching fixtures / older captures)
+//	hdr:u=0,i   — Priority HTTP header (live Chrome 124+, Safari, Firefox)
+//	7540        — deprecated RFC 7540 PRIORITY / HEADERS priority bit only
+//	0           — preface-only or no priority signal
+//
+// Example live Chrome request flight:
+//
+//	1:65536;2:0;4:6291456;6:262144|15663105|hdr:u=0,i|m,a,s,p
+//
+// Example teaching PRIORITY_UPDATE flight:
 //
 //	1:65536;2:0;4:6291456;6:262144;9:1|15663105|u=0,i|m,a,s,p
 func (s *H2Session) AkamaiH2Fingerprint() string {

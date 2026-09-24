@@ -32,7 +32,7 @@ func TestPriorityUpdateNonZeroHeaderStreamNoted(t *testing.T) {
 	}
 }
 
-func TestH2LiveChromeFirstFlightNoPriorityUpdate(t *testing.T) {
+func TestH2LiveChromeRequestFlightPriorityHeader(t *testing.T) {
 	_, raw, err := LoadFixtureBytes("h2_chrome")
 	if err != nil {
 		t.Fatal(err)
@@ -41,14 +41,33 @@ func TestH2LiveChromeFirstFlightNoPriorityUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.PriorityFingerprint() != "0" {
-		t.Fatalf("live first flight should lack PRIORITY_UPDATE, got %s", s.PriorityFingerprint())
+	if s.PriorityFingerprint() != "hdr:u=0,i" {
+		t.Fatalf("live Chrome should use Priority HTTP header, got %s", s.PriorityFingerprint())
+	}
+	if s.HeaderBlock == nil || s.HeaderBlock.PseudoOrder != "m,a,s,p" {
+		t.Fatalf("pseudo=%v", s.HeaderBlock)
 	}
 	ak := s.AkamaiH2Fingerprint()
-	if ak != "1:65536;2:0;4:6291456;6:262144|15663105|0|" {
+	want := "1:65536;2:0;4:6291456;6:262144|15663105|hdr:u=0,i|m,a,s,p"
+	if ak != want {
 		t.Fatalf("live h2 akamai=%s", ak)
 	}
 	t.Log(ak)
+}
+
+func TestH2LiveEdgeRequestFlightMatchesChromeFamily(t *testing.T) {
+	_, raw, err := LoadFixtureBytes("h2_edge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := ParseH2(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "1:65536;2:0;4:6291456;6:262144|15663105|hdr:u=0,i|m,a,s,p"
+	if got := s.AkamaiH2Fingerprint(); got != want {
+		t.Fatalf("edge akamai=%s", got)
+	}
 }
 
 func TestH2ContinuationFixtureHasPriorityUpdate(t *testing.T) {

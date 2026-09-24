@@ -84,12 +84,13 @@ func splitSFDict(s string) []string {
 // PriorityFingerprint is Akamai H2 field 3.
 //
 // Historical Akamai tokens used "0" (no RFC7540 PRIORITY) or a tree hash.
-// For RFC 9218-era Chrome we emit a compact form:
+// CoherenceLab extends the field for RFC 9218-era clients:
 //
 //	0                         — no priority signal
-//	7540                      — legacy PRIORITY frame(s) only
-//	u=0,i                     — single PRIORITY_UPDATE raw value (normalized spaces)
-//	u=0,i;u=3                 — multiple updates joined by ';'
+//	7540                      — legacy PRIORITY frame / HEADERS priority bit only
+//	u=0,i                     — PRIORITY_UPDATE frame value (normalized spaces)
+//	hdr:u=0,i                 — RFC 9218 Priority HTTP header (Chrome 124+)
+//	u=0,i;u=3                 — multiple PRIORITY_UPDATE values joined by ';'
 func (s *H2Session) PriorityFingerprint() string {
 	if len(s.PriorityUpdates) > 0 {
 		parts := make([]string, 0, len(s.PriorityUpdates))
@@ -102,12 +103,37 @@ func (s *H2Session) PriorityFingerprint() string {
 		}
 		return strings.Join(parts, ";")
 	}
+	if v := s.httpPriorityHeaderValue(); v != "" {
+		return "hdr:" + strings.ReplaceAll(strings.TrimSpace(v), " ", "")
+	}
 	for _, fr := range s.Frames {
 		if fr.Type == FramePriority {
 			return "7540"
 		}
+		// HEADERS with RFC 7540 Priority flag (0x20)
+		if fr.Type == FrameHeaders && fr.Flags&0x20 != 0 {
+			return "7540"
+		}
 	}
 	return "0"
+}
+
+func (s *H2Session) httpPriorityHeaderValue() string {
+	blocks := s.HeaderBlocks
+	if len(blocks) == 0 && s.HeaderBlock != nil {
+		blocks = []*HeaderBlock{s.HeaderBlock}
+	}
+	for _, hb := range blocks {
+		if hb == nil {
+			continue
+		}
+		for _, f := range hb.Fields {
+			if strings.EqualFold(f.Name, "priority") && f.Value != "" {
+				return f.Value
+			}
+		}
+	}
+	return ""
 }
 
 // HasNoRFC7540Priorities reports SETTINGS_NO_RFC7540_PRIORITIES=1.
@@ -124,26 +150,37 @@ func priorityFindings(s *H2Session) []string {
 	var out []string
 	no7540 := s.HasNoRFC7540Priorities()
 	hasPU := len(s.PriorityUpdates) > 0
+	hdrPri := s.httpPriorityHeaderValue()
 	hasLegacy := false
+	headersPriBit := false
 	for _, fr := range s.Frames {
 		if fr.Type == FramePriority {
 			hasLegacy = true
-			break
+		}
+		if fr.Type == FrameHeaders && fr.Flags&0x20 != 0 {
+			headersPriBit = true
 		}
 	}
 	switch {
 	case no7540 && hasPU:
 		out = append(out, "SETTINGS_NO_RFC7540_PRIORITIES=1 + PRIORITY_UPDATE — Chromium Extensible Prioritization path (RFC 9218)")
+	case hdrPri != "" && hasPU:
+		out = append(out, "Both Priority HTTP header and PRIORITY_UPDATE — full RFC 9218 dual signal")
+	case hdrPri != "":
+		out = append(out, fmt.Sprintf("RFC 9218 Priority HTTP header %q (Chrome 124+ / Safari / Firefox) — not a PRIORITY_UPDATE frame", hdrPri))
+		if headersPriBit {
+			out = append(out, "HEADERS still carries deprecated RFC 7540 Priority flag alongside Priority header — transitional Chrome wire shape")
+		}
 	case no7540 && !hasPU:
 		out = append(out, "NO_RFC7540_PRIORITIES=1 but no PRIORITY_UPDATE in capture — incomplete Chrome-like session or capture gap")
 	case !no7540 && hasPU:
 		out = append(out, "PRIORITY_UPDATE without NO_RFC7540_PRIORITIES — allowed but atypical for modern Chrome; check SETTINGS order/completeness")
 	case hasLegacy && hasPU:
 		out = append(out, "Both RFC 7540 PRIORITY and PRIORITY_UPDATE — transitional / buggy client smell")
-	case hasLegacy:
-		out = append(out, "Legacy RFC 7540 PRIORITY frame(s) only — pre-EPS / non-Chrome desktop path")
+	case hasLegacy || headersPriBit:
+		out = append(out, "Legacy RFC 7540 PRIORITY signal only — pre-header EPS / older Chrome path")
 	default:
-		out = append(out, "No priority frames — Akamai field 3 = 0 (common for minimal impersonators)")
+		out = append(out, "No priority frames — Akamai field 3 = 0 (common for minimal impersonators / preface-only captures)")
 	}
 	for _, pu := range s.PriorityUpdates {
 		if pu.HeaderStreamID != 0 {

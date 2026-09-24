@@ -85,9 +85,8 @@ func (c *CaptureConn) tryCapture(chunk []byte, fromWrite bool) {
 }
 
 // truncateThroughControlFlight returns preface + frames through the first
-// HEADERS(+CONTINUATION) block when present, so live captures can include
-// PRIORITY_UPDATE and Akamai field 4. Preface-only flights (SETTINGS+WINDOW_UPDATE)
-// are returned as-is.
+// HEADERS(+CONTINUATION) block and any PRIORITY_UPDATE that follows before DATA,
+// so live captures can include RFC 9218 EPS (Akamai field 3).
 func truncateThroughControlFlight(data []byte) []byte {
 	prefaceLen := len(http2.ClientPreface)
 	if len(data) < prefaceLen {
@@ -96,6 +95,7 @@ func truncateThroughControlFlight(data []byte) []byte {
 	off := prefaceLen
 	lastKeep := off
 	sawSettings := false
+	sawHeadersEnd := false
 	inHeaders := false
 	headersStream := uint32(0)
 	for off+9 <= len(data) {
@@ -108,31 +108,44 @@ func truncateThroughControlFlight(data []byte) []byte {
 			break
 		}
 		switch ftype {
+		case 0x0: // DATA — end of control/request-header flight
+			if sawHeadersEnd {
+				return append([]byte(nil), data[:lastKeep]...)
+			}
+			lastKeep = end
 		case 0x1: // HEADERS
+			if sawHeadersEnd {
+				// Next request on this connection — stop so HPACK stays coherent.
+				return append([]byte(nil), data[:lastKeep]...)
+			}
 			sawSettings = true
 			inHeaders = true
 			headersStream = stream
 			lastKeep = end
 			if flags&0x4 != 0 { // END_HEADERS
-				return append([]byte(nil), data[:lastKeep]...)
+				sawHeadersEnd = true
+				inHeaders = false
 			}
 		case 0x9: // CONTINUATION
 			if inHeaders && stream == headersStream {
 				lastKeep = end
 				if flags&0x4 != 0 {
-					return append([]byte(nil), data[:lastKeep]...)
+					sawHeadersEnd = true
+					inHeaders = false
 				}
 			}
 		case 0x4: // SETTINGS
 			sawSettings = true
 			lastKeep = end
 		case 0x8, 0x10: // WINDOW_UPDATE, PRIORITY_UPDATE
-			if sawSettings || inHeaders {
+			if sawSettings || sawHeadersEnd || inHeaders {
 				lastKeep = end
 			}
 		default:
-			if (sawSettings || inHeaders) && ftype != 0x6 {
-				lastKeep = end
+			if sawSettings || sawHeadersEnd || inHeaders {
+				if ftype != 0x6 { // skip PING noise after headers
+					lastKeep = end
+				}
 			}
 		}
 		off = end

@@ -86,7 +86,7 @@ func TestCrossLayerLiveChromeFamilyCoherent(t *testing.T) {
 	if r.H3FP == "" || r.QUICTPFP == "" || r.H2Akamai == "" {
 		t.Fatalf("missing fps: %+v", r)
 	}
-	if r.H2Akamai != "1:65536;2:0;4:6291456;6:262144|15663105|0|" {
+	if r.H2Akamai != "1:65536;2:0;4:6291456;6:262144|15663105|hdr:u=0,i|m,a,s,p" {
 		t.Logf("live H2 Akamai (may drift across Chrome builds): %s", r.H2Akamai)
 	}
 	t.Logf("H2=%s\nH3=%s\nTP=%s", r.H2Akamai, r.H3FP, r.QUICTPFP)
@@ -183,7 +183,7 @@ func TestGoldenFingerprintsLocked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantH2 := "1:65536;2:0;4:6291456;6:262144|15663105|0|"
+	wantH2 := "1:65536;2:0;4:6291456;6:262144|15663105|hdr:u=0,i|m,a,s,p"
 	if got := h2.AkamaiH2Fingerprint(); got != wantH2 {
 		t.Fatalf("h2_chrome (live) Akamai golden changed\n got  %s\n want %s", got, wantH2)
 	}

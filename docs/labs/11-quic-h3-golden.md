@@ -15,7 +15,7 @@ impersonators:
 |-------|---------------|-------------|-----------|--------------|----------|
 | QUIC TP | `ids\|gN\|gq0/1` | `3128,8,5,4,3,6,9,7,1,20,11,f\|g1\|gq0` | `3,20,4,11,5,3128,1,7,8,6,f,9\|g1\|gq0` | `1,4,5,6,7,8,9,b,e,f,11,1d,20\|g1\|gq0` | `…\|g1\|gq1` |
 | HTTP/3 | `settings\|gfN\|priority` | `1,6,7,33,g\|gf1\|request_stream:0:u=0,i` | (bundled `h3_edge`) | — | `1,6,7,g\|gf1\|…` |
-| HTTP/2 | Akamai | `…\|15663105\|0\|` first flight | `h2_edge` | `h2_firefox` | `…\|u=0,i\|m,a,s,p` |
+| HTTP/2 | Akamai | `…\|15663105\|hdr:u=0,i\|m,a,s,p` | same family | preface `…\|0\|` | `…\|u=0,i\|m,a,s,p` (frame) |
 
 GREASE ids are collapsed (`g` / `gN`) so the golden stays stable across
 random GREASE values while still requiring **presence**. Live Chrome often
@@ -70,7 +70,7 @@ lock — same workflow as Lab 06 ClientHello corpus diffs, one layer up.
 
 1. Why collapse GREASE *values* but still require GREASE *presence* in the golden?
 2. What does “GREASE on H3 but not on QUIC TPs” imply about a claimed Chrome stack?
-3. Why can live H2 field 3=`0` still be a real Chrome capture?
+3. Why can live H2 field 3 be `hdr:u=0,i` (header) while the teaching fixture uses `u=0,i` (PRIORITY_UPDATE frame)?
 
 ## Next
 

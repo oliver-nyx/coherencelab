@@ -281,11 +281,15 @@ func CrossLayerFromParsed(h2 *H2Session, h3 *H3Session, tps []TransportParam, mo
 
 	switch mode {
 	case CrossLayerLive:
-		if h2PU {
-			r.Signals = append(r.Signals, "H2 PRIORITY_UPDATE present (Akamai field 3 ≠ 0)")
-		} else {
+		switch {
+		case strings.HasPrefix(h2.PriorityFingerprint(), "hdr:"):
 			r.Signals = append(r.Signals,
-				"Live H2 first flight: Akamai field 3=0 — Chrome often defers PRIORITY_UPDATE until a real request (probe SETTINGS+WINDOW_UPDATE only)")
+				"H2 Priority HTTP header present (Akamai field 3=hdr:…; Chrome 124+ / live request flight)")
+		case h2PU:
+			r.Signals = append(r.Signals, "H2 PRIORITY_UPDATE present (Akamai field 3 ≠ 0)")
+		default:
+			r.Signals = append(r.Signals,
+				"Live H2 preface-only: Akamai field 3=0 — request flights carry Priority header or PRIORITY_UPDATE")
 		}
 		add(h3PU, "H3 PRIORITY_UPDATE present (live Chrome control stream)",
 			"H3 missing PRIORITY_UPDATE — Chrome navigations usually send u=/i")

@@ -50,7 +50,8 @@ merged stream parses. Use that file for `quic_initial_firefox`.
 
 | Fixture | Typical live shape |
 |---------|-------------------|
-| `h2_*` first flight | SETTINGS + WINDOW_UPDATE; Akamai field 3 often `0` |
+| `h2_chrome` / `h2_edge` | request flight: SETTINGS + WINDOW_UPDATE + HEADERS; Akamai `…\|hdr:u=0,i\|m,a,s,p` |
+| `h2_firefox` | preface-only today (SETTINGS + WINDOW_UPDATE); field 3=`0` |
 | `h3_chrome` / `h3_edge` | SETTINGS + GREASE + PRIORITY_UPDATE on control stream |
 | `quic_initial_chrome` | decryptable Initial; often `gq0` (no grease_quic_bit) |
 | `quic_initial_edge` | decryptable Initial; TP order differs from Chrome; `gq0` |

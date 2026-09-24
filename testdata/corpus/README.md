@@ -12,10 +12,10 @@ Checked-in wire samples so labs work on a cold clone — **no Wireshark required
 | `clienthello-chrome_131_utls.bin` | **utls-synth** — `HelloChrome_131` parrot baseline for Lab 06 |
 | `clienthello-firefox_133.bin` | **utls-synth** — Firefox Auto parrot (compare with `firefox_live`) |
 | `clienthello-safari_*.bin` | **utls-synth** (live Safari needs macOS/iOS) |
-| `h2-chrome-live.bin` | **live-browser** — real Chrome H2 preface+SETTINGS+WINDOW_UPDATE (Akamai field 3=`0` on first probe flight) |
-| `h2-edge-live.bin` | **live-browser** — real Edge H2 preface+SETTINGS+WINDOW_UPDATE |
+| `h2-chrome-live.bin` | **live-browser** — Chrome H2 **request** flight (HEADERS + `priority: u=0, i`; Akamai `…\|hdr:u=0,i\|m,a,s,p`) |
+| `h2-edge-live.bin` | **live-browser** — Edge H2 request flight (same Chromium Akamai shape) |
 | `h2-chrome-like.bin` | **crafted** — teaching H2 (`h2_continuation`: EPS + CONTINUATION) |
-| `h2-firefox-live.bin` | **live-browser** — real Firefox H2 preface+SETTINGS+WINDOW_UPDATE (Windows; enterprise_roots) |
+| `h2-firefox-live.bin` | **live-browser** — Firefox H2 preface+SETTINGS+WINDOW_UPDATE (request flight pending) |
 | `h2-firefox-like.bin` | **crafted** — Firefox-like SETTINGS+HEADERS (`h2_firefox_crafted`) |
 | `h3-chrome-live.bin` | **live-browser** — real Chrome H3 control stream (SETTINGS+GREASE+PRIORITY_UPDATE) |
 | `h3-edge-live.bin` | **live-browser** — real Edge H3 control stream |
