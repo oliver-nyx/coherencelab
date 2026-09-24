@@ -22,6 +22,8 @@ Checked-in wire samples so labs work on a cold clone — **no Wireshark required
 | `h3-chrome-like.bin` / `h3-minimal.bin` | **crafted** — teaching H3 / naive contrast (`h3_chrome_crafted`) |
 | `qpack-chrome.bin` / `qpack-firefox.bin` / `qpack-safari.bin` | **crafted** — QPACK RIC=0 field sections (Lab 12) |
 | `quic-initial-chrome-live.bin` | **live-browser** — real Chrome QUICv1 Initial (decryptable; often `gq0`) |
+| `quic-initial-edge-live.bin` | **live-browser** — real Edge QUICv1 Initial (Chromium-family; TP wire order ≠ Chrome) |
+| `quic-initial-firefox-live.bin` | **live-browser** — real Firefox QUICv1 Initial **flight** (`CLQI` multi-datagram; CRYPTO fragmented) |
 | `quic-initial-chrome-like.bin` | **crafted** — teaching Initial with `grease_quic_bit` (`gq1`) / Retry ODCID |
 | `quic-tp-minimal.bin` | **crafted** — raw transport_parameters without GREASE |
 | `quic-vn-grease.bin` | **crafted** — Version Negotiation with QUICv1 + GREASE versions |

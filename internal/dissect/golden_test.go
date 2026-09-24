@@ -116,6 +116,30 @@ func TestGoldenFingerprintsLocked(t *testing.T) {
 		t.Fatalf("quic_initial_chrome (live) TP golden changed\n got  %s\n want %s", got, wantLiveTP)
 	}
 
+	edgeTPs, _, err := LoadTransportParamsForGolden("quic_initial_edge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantEdgeTP := "3,20,4,11,5,3128,1,7,8,6,f,9|g1|gq0"
+	if got := TransportFingerprint(edgeTPs); got != wantEdgeTP {
+		t.Fatalf("quic_initial_edge (live) TP golden changed\n got  %s\n want %s", got, wantEdgeTP)
+	}
+	if got := TransportFingerprint(edgeTPs); got == wantLiveTP {
+		t.Fatalf("edge TP order unexpectedly identical to chrome — capture may be a Chrome copy")
+	}
+
+	ffTPs, _, err := LoadTransportParamsForGolden("quic_initial_firefox")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantFFTP := "1,4,5,6,7,8,9,b,e,f,11,1d,20|g1|gq0"
+	if got := TransportFingerprint(ffTPs); got != wantFFTP {
+		t.Fatalf("quic_initial_firefox (live) TP golden changed\n got  %s\n want %s", got, wantFFTP)
+	}
+	if strings.Contains(TransportFingerprint(ffTPs), "3128") {
+		t.Fatalf("firefox TP must not include Google QUIC TP 0x3128: %s", TransportFingerprint(ffTPs))
+	}
+
 	craftedTPs, _, err := LoadTransportParamsForGolden("quic_initial_crafted")
 	if err != nil {
 		t.Fatal(err)

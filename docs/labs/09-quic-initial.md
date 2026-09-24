@@ -44,6 +44,9 @@ Confirm:
 1. Live packet decrypts (PN printed, CRYPTO present, GREASE TPs)
 2. Embedded ClientHello SNI = `example.com`
 3. Live TP golden often ends `|g1|gq0` — `grease_quic_bit` is **not** universal on real Chrome
+4. Firefox fragments CRYPTO across Initials — use `quic_initial_firefox` (`CLQI` flight) or
+   `DecryptInitialCapture`; single-datagram AEAD must truncate to the Length field (coalescing)
+5. Edge shares Google TP `0x3128` with Chrome but a different parameter **order**
 4. Crafted fixture locks `|g1|gq1` for Lab 10 Retry ODCID / teaching
 5. Minimal TP fixture has **no** GREASE entries
 

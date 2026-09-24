@@ -38,9 +38,13 @@ firefox -profile C:\clcap\ffprof https://example.com:8443/probe
 ```
 
 Copy the newest `probe-*.h2.bin` / `probe-*.h3.bin` /
-`probe-*.quic.bin` / `*.clienthello.bin` into `testdata/corpus/` with the
-catalog names in `internal/dissect/fixtures.go`, then update golden locks in
-`golden_test.go` if fingerprints drift.
+`probe-*.quic.bin` / `probe-*.quic-flight.bin` / `*.clienthello.bin` into
+`testdata/corpus/` with the catalog names in `internal/dissect/fixtures.go`,
+then update golden locks in `golden_test.go` if fingerprints drift.
+
+Firefox often fragments the ClientHello CRYPTO stream across multiple
+Initials — the probe writes `*.quic-flight.bin` (`CLQI` magic) once the
+merged stream parses. Use that file for `quic_initial_firefox`.
 
 ## Honesty notes
 
@@ -49,6 +53,8 @@ catalog names in `internal/dissect/fixtures.go`, then update golden locks in
 | `h2_*` first flight | SETTINGS + WINDOW_UPDATE; Akamai field 3 often `0` |
 | `h3_chrome` / `h3_edge` | SETTINGS + GREASE + PRIORITY_UPDATE on control stream |
 | `quic_initial_chrome` | decryptable Initial; often `gq0` (no grease_quic_bit) |
+| `quic_initial_edge` | decryptable Initial; TP order differs from Chrome; `gq0` |
+| `quic_initial_firefox` | `CLQI` flight (CRYPTO split across Initials); no Google `0x3128`; `gq0` |
 
 Teaching fixtures (`h2_continuation`, `h3_chrome_crafted`, `quic_initial_crafted`)
 keep the full EPS / `gq1` story for labs.

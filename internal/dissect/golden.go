@@ -363,7 +363,7 @@ func LoadTransportParamsForGolden(name string) ([]TransportParam, string, error)
 		tps, err := ParseTransportParameters(raw)
 		return tps, fx.Notes, err
 	case "quic":
-		d, err := DecryptInitial(raw)
+		d, err := DecryptInitialCapture(raw)
 		if err != nil {
 			return nil, fx.Notes, err
 		}

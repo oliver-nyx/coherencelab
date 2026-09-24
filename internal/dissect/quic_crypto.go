@@ -129,7 +129,16 @@ func DecryptInitial(b []byte) (*DecryptedInitial, error) {
 	hdr = append(hdr, pnBytes...)
 
 	payloadStart := h.PNOffset + pnLen
-	ct := b[payloadStart:]
+	// Length covers PN + payload; truncate so coalesced Handshake/1-RTT bytes
+	// after this Initial are not fed to AEAD (Firefox often coalesces).
+	packetEnd := h.PNOffset + int(h.Length)
+	if packetEnd > len(b) {
+		return nil, fmt.Errorf("quic: truncated Initial (Length=%d need end=%d have=%d)", h.Length, packetEnd, len(b))
+	}
+	if payloadStart >= packetEnd {
+		return nil, fmt.Errorf("quic: empty Initial payload")
+	}
+	ct := b[payloadStart:packetEnd]
 	if len(ct) < 16 {
 		return nil, fmt.Errorf("quic: ciphertext too short")
 	}
@@ -232,7 +241,7 @@ func initialFindings(d *DecryptedInitial) []string {
 		if grease == 0 {
 			out = append(out, "No GREASE transport parameters — many naive QUIC stacks forget 31·N+27")
 		} else {
-			out = append(out, "GREASE TPs observed — strong Chromium/quic-go family signal")
+			out = append(out, "GREASE TPs observed — modern stack signal (Chrome/Edge/Firefox)")
 		}
 	} else if d.ClientHello != nil {
 		out = append(out, "ClientHello without quic_transport_parameters (0x39) — not a QUIC TLS hello, or TP in a later CRYPTO")

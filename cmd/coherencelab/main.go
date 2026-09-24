@@ -669,7 +669,7 @@ Packet class is auto-detected unless --header-only / --tp is set.`,
 				dissect.FormatRetry(os.Stdout, r)
 				return nil
 			case "initial":
-				d, err := dissect.DecryptInitial(raw)
+				d, err := dissect.DecryptInitialCapture(raw)
 				if err != nil {
 					return err
 				}
@@ -1173,7 +1173,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.9.2")
+			fmt.Println("coherencelab v1.9.3")
 		},
 	}
 }

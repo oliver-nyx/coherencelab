@@ -25,6 +25,8 @@ func main() {
 		"h3-chrome-live.bin":              true,
 		"h3-edge-live.bin":                true,
 		"quic-initial-chrome-live.bin":    true,
+		"quic-initial-edge-live.bin":      true,
+		"quic-initial-firefox-live.bin":   true,
 	}
 	write := func(path string, b []byte) {
 		base := filepath.Base(path)

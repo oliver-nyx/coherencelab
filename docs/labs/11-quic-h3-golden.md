@@ -11,11 +11,11 @@ impersonators:
 
 ## Fingerprints
 
-| Layer | Golden string | Live Chrome (bundled) | Teaching / crafted |
-|-------|---------------|------------------------|--------------------|
-| QUIC TP | `ids\|gN\|gq0/1` | `3128,8,5,4,3,6,9,7,1,20,11,f\|g1\|gq0` | `1,3,4,5,6,7,8,9,a,b,e,f,2ab2\|g1\|gq1` |
-| HTTP/3 | `settings\|gfN\|priority` | `1,6,7,33,g\|gf1\|request_stream:0:u=0,i` | `1,6,7,g\|gf1\|…` (`h3_chrome_crafted`) |
-| HTTP/2 | Akamai | `…\|15663105\|0\|` first flight | `…\|u=0,i\|m,a,s,p` (`h2_continuation`) |
+| Layer | Golden string | Live Chrome | Live Edge | Live Firefox | Teaching |
+|-------|---------------|-------------|-----------|--------------|----------|
+| QUIC TP | `ids\|gN\|gq0/1` | `3128,8,5,4,3,6,9,7,1,20,11,f\|g1\|gq0` | `3,20,4,11,5,3128,1,7,8,6,f,9\|g1\|gq0` | `1,4,5,6,7,8,9,b,e,f,11,1d,20\|g1\|gq0` | `…\|g1\|gq1` |
+| HTTP/3 | `settings\|gfN\|priority` | `1,6,7,33,g\|gf1\|request_stream:0:u=0,i` | (bundled `h3_edge`) | — | `1,6,7,g\|gf1\|…` |
+| HTTP/2 | Akamai | `…\|15663105\|0\|` first flight | `h2_edge` | `h2_firefox` | `…\|u=0,i\|m,a,s,p` |
 
 GREASE ids are collapsed (`g` / `gN`) so the golden stays stable across
 random GREASE values while still requiring **presence**. Live Chrome often
@@ -33,11 +33,16 @@ Targeted diffs:
 
 ```bash
 ./bin/coherencelab lab golden --quic quic_initial_chrome --vs quic_tp_minimal
+./bin/coherencelab lab golden --quic quic_initial_edge --vs quic_initial_chrome
+./bin/coherencelab lab golden --quic quic_initial_firefox --vs quic_initial_chrome
 ./bin/coherencelab lab golden --quic quic_initial_crafted --vs quic_tp_minimal
 ./bin/coherencelab lab golden --h3 h3_chrome --vs-h3 h3_minimal
 ./bin/coherencelab lab golden --cross
 ```
 
+Firefox’s live Initial is a `CLQI` **flight** (CRYPTO split across Initials). Edge shares
+Chromium’s Google TP `0x3128` but paints a different wire **order** — useful for
+“same family, different build” demos.
 Confirm:
 
 1. Live QUIC vs minimal score is **low** (rich TP set + GREASE vs sparse)

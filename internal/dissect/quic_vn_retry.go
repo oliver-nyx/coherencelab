@@ -210,6 +210,9 @@ func retryFindings(r *RetryPacket) []string {
 
 // DetectQUICPacketClass classifies a UDP payload for the lab CLI.
 func DetectQUICPacketClass(b []byte) string {
+	if IsInitialFlight(b) {
+		return "initial"
+	}
 	if len(b) < 5 {
 		return "too_short"
 	}

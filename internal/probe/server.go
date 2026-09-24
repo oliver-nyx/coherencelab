@@ -47,7 +47,9 @@ type Server struct {
 	lastCapture *capture.Input
 	lastHello   []byte
 	lastH2Raw   []byte
-	server      *http.Server
+	quicFlightMu sync.Mutex
+	quicFlights  map[string]*quicFlightAcc // DCID hex → accumulating Initials
+	server       *http.Server
 	quicStop    context.CancelFunc
 }
 

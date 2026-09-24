@@ -22,5 +22,22 @@ jobs:
       - name: Build
         run: go build -o coherencelab ./cmd/coherencelab
 
+      - name: Guard live corpus bins
+        run: |
+          set -euo pipefail
+          # gen_corpus must never overwrite *-live.bin; assert protected set matches disk.
+          python3 - <<'PY'
+          import pathlib, re, sys
+          root = pathlib.Path("testdata/corpus")
+          live = sorted(p.name for p in root.glob("*-live.bin"))
+          src = pathlib.Path("tools/gen_corpus.go").read_text(encoding="utf-8")
+          protected = set(re.findall(r'"([^"]+-live\.bin)"\s*:\s*true', src))
+          missing = [n for n in live if n not in protected]
+          if missing:
+              print("live bins not protected in tools/gen_corpus.go:", missing, file=sys.stderr)
+              sys.exit(1)
+          print("protected live bins:", ", ".join(sorted(protected)))
+          PY
+
       - name: Validate profiles
         run: ./coherencelab profiles validate --profiles profiles

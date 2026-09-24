@@ -7,9 +7,11 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/oliver-nyx/coherencelab/internal/dissect"
@@ -17,8 +19,8 @@ import (
 	"github.com/quic-go/quic-go/http3"
 )
 
-// startQUICCapture runs HTTP/3 and captures the client control stream by
-// reading uni streams before/alongside a minimal response path.
+// startQUICCapture runs HTTP/3 on the probe UDP port, tees QUICv1 Initials,
+// and captures client control-stream frames for the H3 lab corpus.
 func (s *Server) startQUICCapture(cert tls.Certificate) error {
 	host, port, err := net.SplitHostPort(s.Addr)
 	if err != nil {
@@ -37,16 +39,30 @@ func (s *Server) startQUICCapture(cert tls.Certificate) error {
 		_ = pc.Close()
 		return fmt.Errorf("udp listen: expected *net.UDPConn")
 	}
+	tee := &initialTeeConn{UDPConn: udp, onInitial: s.persistQUICInitial}
 
 	tlsConf := http3.ConfigureTLSConfig(&tls.Config{
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS13,
 	})
 
-	tr := &quic.Transport{Conn: udp}
-	ln, err := tr.ListenEarly(tlsConf, &quic.Config{
-		MaxIdleTimeout: 30 * time.Second,
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok\n"))
 	})
+	mux.HandleFunc("/probe", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok\n"))
+	})
+	h3 := &http3.Server{
+		Handler:   mux,
+		TLSConfig: tlsConf,
+		QUICConfig: &quic.Config{
+			MaxIdleTimeout: 30 * time.Second,
+		},
+	}
+
+	tr := &quic.Transport{Conn: tee}
+	ln, err := tr.ListenEarly(tlsConf, h3.QUICConfig)
 	if err != nil {
 		_ = udp.Close()
 		return fmt.Errorf("quic listen: %w", err)
@@ -55,16 +71,17 @@ func (s *Server) startQUICCapture(cert tls.Certificate) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.quicStop = func() {
 		cancel()
+		_ = h3.Close()
 		_ = ln.Close()
 		_ = tr.Close()
 		_ = udp.Close()
 	}
-	log.Printf("HTTP/3 + control-stream capture on udp://%s (Alt-Svc h3)", udpAddr)
-	go s.quicAcceptLoopManual(ctx, ln)
+	log.Printf("HTTP/3 + Initial tee on udp://%s (Alt-Svc h3)", udpAddr)
+	go s.quicAcceptLoop(ctx, ln, h3)
 	return nil
 }
 
-func (s *Server) quicAcceptLoopManual(ctx context.Context, ln *quic.EarlyListener) {
+func (s *Server) quicAcceptLoop(ctx context.Context, ln *quic.EarlyListener, h3 *http3.Server) {
 	for {
 		conn, err := ln.Accept(ctx)
 		if err != nil {
@@ -74,23 +91,36 @@ func (s *Server) quicAcceptLoopManual(ctx context.Context, ln *quic.EarlyListene
 			continue
 		}
 		log.Printf("quic accepted from %s", conn.RemoteAddr())
-		go s.handleH3ConnManual(ctx, conn)
+		go s.handleH3Conn(ctx, conn, h3)
+	}
+}
+
+func (s *Server) handleH3Conn(ctx context.Context, conn *quic.Conn, h3 *http3.Server) {
+	// Fast path: complete handshake via http3 (better Firefox compatibility),
+	// while also running manual control-stream capture on a forked strategy.
+	// ServeQUICConn and AcceptUniStream cannot share a conn — so we use manual
+	// capture after HandshakeComplete (Chrome/Edge). For peers that abort the
+	// early/manual path, ServeQUICConn is attempted only when handshake never
+	// completes (see select below).
+	select {
+	case <-conn.HandshakeComplete():
+		log.Printf("h3 handshake ok from %s alpn=%s", conn.RemoteAddr(), conn.ConnectionState().TLS.NegotiatedProtocol)
+		s.handleH3ConnManual(ctx, conn)
+	case <-conn.Context().Done():
+		log.Printf("h3 conn closed before handshake from %s: %v", conn.RemoteAddr(), context.Cause(conn.Context()))
+	case <-time.After(3 * time.Second):
+		// Slow handshake: hand off to http3 (may help Firefox).
+		log.Printf("h3 handshake slow from %s — ServeQUICConn", conn.RemoteAddr())
+		if err := h3.ServeQUICConn(conn); err != nil {
+			log.Printf("ServeQUICConn %s: %v", conn.RemoteAddr(), err)
+		} else {
+			log.Printf("ServeQUICConn %s done", conn.RemoteAddr())
+		}
 	}
 }
 
 func (s *Server) handleH3ConnManual(ctx context.Context, conn *quic.Conn) {
 	defer conn.CloseWithError(0, "done")
-
-	select {
-	case <-conn.HandshakeComplete():
-		log.Printf("h3 handshake ok from %s alpn=%s", conn.RemoteAddr(), conn.ConnectionState().TLS.NegotiatedProtocol)
-	case <-conn.Context().Done():
-		log.Printf("h3 conn closed before handshake: %v", context.Cause(conn.Context()))
-		return
-	case <-time.After(10 * time.Second):
-		log.Printf("h3 handshake timeout from %s", conn.RemoteAddr())
-		return
-	}
 
 	ctrl, err := conn.OpenUniStreamSync(ctx)
 	if err != nil {
@@ -184,6 +214,115 @@ func (s *Server) persistH3Control(frames []byte) {
 	}
 }
 
+// quicFlightAcc merges Initials that share a DCID until ClientHello parses.
+type quicFlightAcc struct {
+	pkts [][]byte
+	done bool
+}
+
+func (s *Server) persistQUICInitial(pkt []byte) {
+	dir := s.CaptureDir
+	if dir == "" {
+		return
+	}
+	_ = os.MkdirAll(dir, 0o755)
+	path := filepath.Join(dir, fmt.Sprintf("probe-%d.quic.bin", time.Now().UnixNano()))
+	if err := os.WriteFile(path, pkt, 0o644); err != nil {
+		return
+	}
+	log.Printf("wrote QUIC Initial %d bytes → %s", len(pkt), path)
+
+	d, err := dissect.DecryptInitial(pkt)
+	if err != nil {
+		log.Printf("  Initial decrypt: %v", err)
+		return
+	}
+	if d.ClientHello != nil {
+		log.Printf("  decrypted Initial SNI=%q TPs=%d JA3=%s", d.ClientHello.SNI, len(d.Transport), d.ClientHello.JA3Hash())
+		return
+	}
+
+	// Firefox often fragments CRYPTO across Initials — accumulate by DCID.
+	key := fmt.Sprintf("%x", d.Header.DCID)
+	s.quicFlightMu.Lock()
+	defer s.quicFlightMu.Unlock()
+	if s.quicFlights == nil {
+		s.quicFlights = make(map[string]*quicFlightAcc)
+	}
+	acc := s.quicFlights[key]
+	if acc == nil {
+		acc = &quicFlightAcc{}
+		s.quicFlights[key] = acc
+	}
+	if acc.done {
+		return
+	}
+	acc.pkts = append(acc.pkts, append([]byte(nil), pkt...))
+	merged, err := dissect.DecryptInitialFlight(acc.pkts)
+	if err != nil || merged.ClientHello == nil {
+		log.Printf("  flight DCID=%s packets=%d (CRYPTO still incomplete)", key, len(acc.pkts))
+		return
+	}
+	acc.done = true
+	flight, err := dissect.EncodeInitialFlight(acc.pkts)
+	if err != nil {
+		return
+	}
+	fpath := filepath.Join(dir, fmt.Sprintf("probe-%d.quic-flight.bin", time.Now().UnixNano()))
+	if err := os.WriteFile(fpath, flight, 0o644); err != nil {
+		return
+	}
+	log.Printf("wrote QUIC Initial flight (%d pkts, %d bytes) → %s", len(acc.pkts), len(flight), fpath)
+	log.Printf("  flight SNI=%q TPs=%d JA3=%s FP=%s",
+		merged.ClientHello.SNI, len(merged.Transport), merged.ClientHello.JA3Hash(),
+		dissect.TransportFingerprint(merged.Transport))
+}
+
+// initialTeeConn embeds *net.UDPConn and tees Initials without breaking OOB/ECN.
+type initialTeeConn struct {
+	*net.UDPConn
+	onInitial func([]byte)
+	mu        sync.Mutex
+	seen      map[string]struct{}
+}
+
+func (c *initialTeeConn) ReadFrom(p []byte) (int, net.Addr, error) {
+	n, addr, err := c.UDPConn.ReadFrom(p)
+	c.maybeTee(p, n, addr)
+	return n, addr, err
+}
+
+func (c *initialTeeConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *net.UDPAddr, err error) {
+	n, oobn, flags, addr, err = c.UDPConn.ReadMsgUDP(b, oob)
+	c.maybeTee(b, n, addr)
+	return n, oobn, flags, addr, err
+}
+
+func (c *initialTeeConn) maybeTee(p []byte, n int, addr net.Addr) {
+	if n < 20 || c.onInitial == nil || addr == nil {
+		return
+	}
+	if dissect.DetectQUICPacketClass(p[:n]) != "initial" {
+		return
+	}
+	key := fmt.Sprintf("%s-%x", addr.String(), p[:min(n, 24)])
+	c.mu.Lock()
+	if c.seen == nil {
+		c.seen = make(map[string]struct{})
+	}
+	if _, ok := c.seen[key]; ok {
+		c.mu.Unlock()
+		return
+	}
+	c.seen[key] = struct{}{}
+	c.mu.Unlock()
+	c.onInitial(append([]byte(nil), p[:n]...))
+}
+
+func (c *initialTeeConn) SyscallConn() (syscall.RawConn, error) {
+	return c.UDPConn.SyscallConn()
+}
+
 func readVarint(r io.Reader) (uint64, int, error) {
 	var b [1]byte
 	if _, err := io.ReadFull(r, b[:]); err != nil {
@@ -199,6 +338,3 @@ func readVarint(r io.Reader) (uint64, int, error) {
 	}
 	return dissect.ReadVarint(buf)
 }
-
-// Silence unused import if http3 is only used via ConfigureTLSConfig.
-var _ = http3.NextProtoH3
