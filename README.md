@@ -114,7 +114,7 @@ echo $?  # 0 = pass, 1 = critical failure or score below threshold
 Or use the reusable GitHub Action:
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.9.1
+- uses: oliver-nyx/coherencelab@v1.9.2
   with:
     profile: chrome-131-win
     min-score: "90"
@@ -406,11 +406,15 @@ coherencelab/
 - [x] Wire-true JA3/JA4 from peeked ClientHello bytes
 - [x] Live Firefox H2 first-flight fixture (enterprise_roots + probe Root CA)
 - [x] Live Chrome H3 control-stream fixture via serve HTTP/3
+- [x] Live Edge H3 control-stream fixture
+- [ ] Live Firefox H3 (QUIC handshake aborts — cert/ALPN follow-up)
+- [ ] Live Safari ClientHello (requires macOS/iOS — deferred; skip on this host)
 - [ ] Live Safari ClientHello (requires macOS/iOS — deferred; skip on this host)
 
 ## Docs
 
 - [Getting started](docs/getting-started.md)
+- [Live corpus recapture](docs/live-capture.md)
 - [Lab 01: ClientHello dissection](docs/labs/01-clienthello.md)
 - [Lab 02: HTTP/2 wire](docs/labs/02-http2-wire.md)
 - [Lab 03: HPACK / pseudo-header order](docs/labs/03-hpack-pseudo.md)

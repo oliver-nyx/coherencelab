@@ -1,6 +1,7 @@
 package dissect
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -65,6 +66,28 @@ func TestParseH3MinimalNoPriority(t *testing.T) {
 	}
 	if s.PriorityFingerprint() != "0" {
 		t.Fatalf("got %s", s.PriorityFingerprint())
+	}
+}
+
+func TestH3EdgeLiveFixture(t *testing.T) {
+	fx, raw, err := LoadFixtureBytes("h3_edge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fx.Source != "live-browser" {
+		t.Fatalf("source=%s", fx.Source)
+	}
+	s, err := ParseH3(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fp := H3Fingerprint(s)
+	if !strings.Contains(fp, "|gf1|") || !strings.Contains(fp, "u=0,i") {
+		t.Fatalf("edge H3 fp incomplete: %s", fp)
+	}
+	want := "1,6,7,33,g|gf1|request_stream:0:u=0,i;request_stream:4:u=1,i"
+	if fp != want {
+		t.Fatalf("h3_edge golden changed\n got  %s\n want %s", fp, want)
 	}
 }
 

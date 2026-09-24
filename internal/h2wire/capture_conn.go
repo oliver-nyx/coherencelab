@@ -14,11 +14,12 @@ import (
 // or reads (server-side observation).
 type CaptureConn struct {
 	net.Conn
-	mu       sync.Mutex
-	writeBuf bytes.Buffer
-	readBuf  bytes.Buffer
-	obs      *signal.H2Observation
-	raw      []byte // preface + frames through first SETTINGS (wire bytes for corpus)
+	mu          sync.Mutex
+	writeBuf    bytes.Buffer
+	readBuf     bytes.Buffer
+	obs         *signal.H2Observation
+	raw         []byte // client flight bytes for corpus
+	rawFromWrite bool  // which buffer owns obs/raw
 }
 
 // NewCaptureConn wraps conn for HTTP/2 SETTINGS capture.
@@ -33,7 +34,7 @@ func (c *CaptureConn) Observation() *signal.H2Observation {
 	return c.obs
 }
 
-// RawClientFlight returns preface + frames through the first non-ACK SETTINGS.
+// RawClientFlight returns preface + frames through the first request flight.
 func (c *CaptureConn) RawClientFlight() []byte {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -73,14 +74,20 @@ func (c *CaptureConn) tryCapture(chunk []byte, fromWrite bool) {
 		obs, err := tryParseClientSettings(raw)
 		if err == nil && obs != nil {
 			c.obs = obs
+			c.rawFromWrite = fromWrite
 		}
 	}
-	if c.obs != nil {
+	// Only refresh raw from the same direction that produced the observation —
+	// otherwise server writes (e.g. HTTP/1.1 error pages) clobber the client flight.
+	if c.obs != nil && c.rawFromWrite == fromWrite {
 		c.raw = truncateThroughControlFlight(raw)
 	}
 }
 
-// truncateThroughControlFlight returns preface + control frames up to (not including) HEADERS.
+// truncateThroughControlFlight returns preface + frames through the first
+// HEADERS(+CONTINUATION) block when present, so live captures can include
+// PRIORITY_UPDATE and Akamai field 4. Preface-only flights (SETTINGS+WINDOW_UPDATE)
+// are returned as-is.
 func truncateThroughControlFlight(data []byte) []byte {
 	prefaceLen := len(http2.ClientPreface)
 	if len(data) < prefaceLen {
@@ -89,29 +96,42 @@ func truncateThroughControlFlight(data []byte) []byte {
 	off := prefaceLen
 	lastKeep := off
 	sawSettings := false
+	inHeaders := false
+	headersStream := uint32(0)
 	for off+9 <= len(data) {
 		length := int(data[off])<<16 | int(data[off+1])<<8 | int(data[off+2])
 		ftype := data[off+3]
+		flags := data[off+4]
+		stream := uint32(data[off+5])<<24 | uint32(data[off+6])<<16 | uint32(data[off+7])<<8 | uint32(data[off+8])
 		end := off + 9 + length
 		if end > len(data) {
 			break
 		}
 		switch ftype {
-		case 0x1: // HEADERS — stop before
-			if sawSettings {
+		case 0x1: // HEADERS
+			sawSettings = true
+			inHeaders = true
+			headersStream = stream
+			lastKeep = end
+			if flags&0x4 != 0 { // END_HEADERS
 				return append([]byte(nil), data[:lastKeep]...)
 			}
-			return append([]byte(nil), data[:end]...)
+		case 0x9: // CONTINUATION
+			if inHeaders && stream == headersStream {
+				lastKeep = end
+				if flags&0x4 != 0 {
+					return append([]byte(nil), data[:lastKeep]...)
+				}
+			}
 		case 0x4: // SETTINGS
 			sawSettings = true
 			lastKeep = end
 		case 0x8, 0x10: // WINDOW_UPDATE, PRIORITY_UPDATE
-			if sawSettings {
+			if sawSettings || inHeaders {
 				lastKeep = end
 			}
 		default:
-			if sawSettings && ftype != 0x6 { // ignore PING
-				// unknown post-settings control — keep if before HEADERS
+			if (sawSettings || inHeaders) && ftype != 0x6 {
 				lastKeep = end
 			}
 		}

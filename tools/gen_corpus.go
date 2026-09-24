@@ -23,6 +23,7 @@ func main() {
 		"h2-edge-live.bin":                true,
 		"h2-firefox-live.bin":             true,
 		"h3-chrome-live.bin":              true,
+		"h3-edge-live.bin":                true,
 		"quic-initial-chrome-live.bin":    true,
 	}
 	write := func(path string, b []byte) {

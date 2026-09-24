@@ -232,6 +232,11 @@ func (s *Server) storeH2(addr string, obs *signal.H2Observation) {
 
 func (s *Server) persistH2Raw(raw []byte) {
 	s.mu.Lock()
+	// Prefer the longest client flight (preface-only vs request with EPS/HEADERS).
+	if len(raw) < len(s.lastH2Raw) {
+		s.mu.Unlock()
+		return
+	}
 	s.lastH2Raw = append([]byte(nil), raw...)
 	dir := s.CaptureDir
 	s.mu.Unlock()
@@ -240,9 +245,10 @@ func (s *Server) persistH2Raw(raw []byte) {
 	}
 	_ = os.MkdirAll(dir, 0o755)
 	path := filepath.Join(dir, fmt.Sprintf("probe-%d.h2.bin", time.Now().UnixNano()))
-	if err := os.WriteFile(path, raw, 0o644); err == nil {
-		log.Printf("wrote H2 client flight %d bytes → %s", len(raw), path)
+	if err := os.WriteFile(path, raw, 0o644); err != nil {
+		return
 	}
+	log.Printf("wrote H2 client flight %d bytes → %s", len(raw), path)
 }
 
 func (s *Server) takeH2(addr string) *signal.H2Observation {
@@ -351,6 +357,16 @@ func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
 	}
 	if h2 := s.h2FromRequest(r); h2 != nil {
 		obs.H2 = h2
+	}
+	// After HEADERS are in, give the client a beat to flush PRIORITY_UPDATE, then
+	// persist the longest H2 flight seen on this conn.
+	if c, ok := r.Context().Value(connContextKey{}).(*h2TrackedConn); ok {
+		time.Sleep(30 * time.Millisecond)
+		if cap, ok := c.Conn.(*h2wire.CaptureConn); ok {
+			if raw := cap.RawClientFlight(); len(raw) > 0 {
+				s.persistH2Raw(raw)
+			}
+		}
 	}
 	// Advertise HTTP/3 so browsers send a real QUIC Initial to our UDP capture port.
 	if s.EnableQUIC && s.CaptureDir != "" {
