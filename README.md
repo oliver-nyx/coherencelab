@@ -29,6 +29,7 @@ go build -o bin/coherencelab ./cmd/coherencelab
 ./bin/coherencelab lab h2 --fixture h2_chrome             # live H2 request flight
 ./bin/coherencelab lab h2 --fixture h2_continuation       # teaching EPS/CONTINUATION
 ./bin/coherencelab lab h3 --fixture h3_chrome
+./bin/coherencelab lab h3 --fixture h3_firefox
 ./bin/coherencelab lab quic --fixture quic_initial_chrome # live QUIC Initial
 ./bin/coherencelab lab quic --fixture quic_vn
 ./bin/coherencelab lab golden
@@ -114,7 +115,7 @@ echo $?  # 0 = pass, 1 = critical failure or score below threshold
 Or use the reusable GitHub Action:
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.9.6
+- uses: oliver-nyx/coherencelab@v1.9.7
   with:
     profile: chrome-131-win
     min-score: "90"
@@ -411,6 +412,7 @@ coherencelab/
 - [x] Live Edge H3 control-stream fixture
 - [x] Live Firefox H3 control-stream fixture (needs `disable_when_third_party_roots_found=false`)
 - [x] CI guard: `*-live.bin` must stay protected in `gen_corpus.go`
+- [x] Chromium vs Firefox H3/QUIC family contrast in `lab golden --cross`
 - [ ] Live Safari ClientHello (requires macOS/iOS — deferred; skip on this host)
 
 ## Docs

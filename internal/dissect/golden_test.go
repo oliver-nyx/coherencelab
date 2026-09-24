@@ -83,6 +83,9 @@ func TestCrossLayerLiveChromeFamilyCoherent(t *testing.T) {
 	if !r.Coherent {
 		t.Fatalf("expected live-mode coherent (documented gaps as signals), conflicts=%v", r.Conflicts)
 	}
+	if r.Family != "chrome" {
+		t.Fatalf("family=%s", r.Family)
+	}
 	if r.H3FP == "" || r.QUICTPFP == "" || r.H2Akamai == "" {
 		t.Fatalf("missing fps: %+v", r)
 	}
@@ -90,6 +93,50 @@ func TestCrossLayerLiveChromeFamilyCoherent(t *testing.T) {
 		t.Logf("live H2 Akamai (may drift across Chrome builds): %s", r.H2Akamai)
 	}
 	t.Logf("H2=%s\nH3=%s\nTP=%s", r.H2Akamai, r.H3FP, r.QUICTPFP)
+}
+
+func TestCrossLayerLiveFirefoxFamilyCoherent(t *testing.T) {
+	r, err := AnalyzeFirefoxFamilyCrossLayer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !r.Coherent {
+		t.Fatalf("expected firefox live coherent, conflicts=%v signals=%v", r.Conflicts, r.Signals)
+	}
+	if r.Family != "firefox" {
+		t.Fatalf("family=%s", r.Family)
+	}
+	wantH3 := "1,7,2b603742,ffd277,33,8|gf1|0"
+	if r.H3FP != wantH3 {
+		t.Fatalf("firefox H3 fp\n got  %s\n want %s", r.H3FP, wantH3)
+	}
+	if !strings.Contains(r.H2Akamai, "|m,p,a,s") {
+		t.Fatalf("firefox H2 should be mpas: %s", r.H2Akamai)
+	}
+	if strings.Contains(r.QUICTPFP, "3128") {
+		t.Fatalf("firefox TP must not include Google 0x3128: %s", r.QUICTPFP)
+	}
+	t.Logf("H2=%s\nH3=%s\nTP=%s", r.H2Akamai, r.H3FP, r.QUICTPFP)
+}
+
+func TestChromiumVsFirefoxFamilyContrast(t *testing.T) {
+	r, err := AnalyzeChromiumVsFirefox()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.H3Diff == nil || r.H3Diff.Score > 55 {
+		t.Fatalf("chrome vs firefox H3 should disagree hard, score=%v", r.H3Diff)
+	}
+	if len(r.Splits) < 3 {
+		t.Fatalf("expected several family splits, got %v", r.Splits)
+	}
+	joined := strings.Join(r.Splits, "\n")
+	for _, need := range []string{"m,a,s,p", "0x3128", "0x2b603742"} {
+		if !strings.Contains(joined, need) {
+			t.Fatalf("missing split mentioning %s in %v", need, r.Splits)
+		}
+	}
+	t.Logf("agreements=%v\nsplits=%v\nscore=%.1f", r.Agreements, r.Splits, r.H3Diff.Score)
 }
 
 func TestCrossLayerTeachingChromeFamilyCoherent(t *testing.T) {

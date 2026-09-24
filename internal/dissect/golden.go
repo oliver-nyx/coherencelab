@@ -178,6 +178,7 @@ func DiffH3Sessions(ref, other *H3Session) *GoldenDiff {
 // CrossLayerReport checks whether chrome-like fixtures tell one family story
 // across H2 / H3 / QUIC Initial layers (the RE coherence question after Labs 07–10).
 type CrossLayerReport struct {
+	Family     string // chrome | firefox | teaching
 	H2Akamai   string
 	H3FP       string
 	QUICTPFP   string
@@ -192,7 +193,17 @@ type CrossLayerReport struct {
 // often lacks grease_quic_bit). For the teaching “EPS everywhere” story use
 // AnalyzeTeachingChromeFamilyCrossLayer (h2_continuation + quic_initial_crafted).
 func AnalyzeChromeFamilyCrossLayer() (*CrossLayerReport, error) {
-	_, h2raw, err := LoadFixtureBytes("h2_chrome")
+	return analyzeLiveFamilyCrossLayer("h2_chrome", "h3_chrome", "quic_initial_chrome", CrossLayerLive)
+}
+
+// AnalyzeFirefoxFamilyCrossLayer loads live Firefox H2/H3/QUIC fixtures and
+// scores neqo-shaped signals (m,p,a,s; WT draft H3 SETTINGS; no Google TP 0x3128).
+func AnalyzeFirefoxFamilyCrossLayer() (*CrossLayerReport, error) {
+	return analyzeLiveFamilyCrossLayer("h2_firefox", "h3_firefox", "quic_initial_firefox", CrossLayerFirefox)
+}
+
+func analyzeLiveFamilyCrossLayer(h2Name, h3Name, quicName string, mode CrossLayerMode) (*CrossLayerReport, error) {
+	_, h2raw, err := LoadFixtureBytes(h2Name)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +211,7 @@ func AnalyzeChromeFamilyCrossLayer() (*CrossLayerReport, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, h3raw, err := LoadFixtureBytes("h3_chrome")
+	_, h3raw, err := LoadFixtureBytes(h3Name)
 	if err != nil {
 		return nil, err
 	}
@@ -208,15 +219,11 @@ func AnalyzeChromeFamilyCrossLayer() (*CrossLayerReport, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, qraw, err := LoadFixtureBytes("quic_initial_chrome")
+	tps, _, err := LoadTransportParamsForGolden(quicName)
 	if err != nil {
 		return nil, err
 	}
-	qi, err := DecryptInitial(qraw)
-	if err != nil {
-		return nil, err
-	}
-	return CrossLayerFromParsed(h2, h3, qi.Transport, CrossLayerLive), nil
+	return CrossLayerFromParsed(h2, h3, tps, mode), nil
 }
 
 // AnalyzeTeachingChromeFamilyCrossLayer uses crafted chrome-like fixtures that
@@ -254,7 +261,8 @@ type CrossLayerMode int
 
 const (
 	CrossLayerTeaching CrossLayerMode = iota // crafted bins — EPS + gq1 required
-	CrossLayerLive                           // live first-flight — document gaps as signals
+	CrossLayerLive                           // live Chromium first-flight — document gaps as signals
+	CrossLayerFirefox                        // live Firefox/neqo — WT SETTINGS, mpas, no 0x3128
 )
 
 // CrossLayerFromParsed builds a coherence report from already-parsed layers.
@@ -263,6 +271,14 @@ func CrossLayerFromParsed(h2 *H2Session, h3 *H3Session, tps []TransportParam, mo
 		H2Akamai: h2.AkamaiH2Fingerprint(),
 		H3FP:     H3Fingerprint(h3),
 		QUICTPFP: TransportFingerprint(tps),
+	}
+	switch mode {
+	case CrossLayerFirefox:
+		r.Family = "firefox"
+	case CrossLayerLive:
+		r.Family = "chrome"
+	default:
+		r.Family = "teaching"
 	}
 
 	h2PU := h2.PriorityFingerprint() != "0"
@@ -313,6 +329,56 @@ func CrossLayerFromParsed(h2 *H2Session, h3 *H3Session, tps []TransportParam, mo
 			r.Signals = append(r.Signals,
 				fmt.Sprintf("Live timing: H2 first-flight EPS=%v vs H3 control EPS=%v — not a family break when H2 is preface-only", h2PU, h3PU))
 		}
+	case CrossLayerFirefox:
+		if strings.Contains(r.H2Akamai, "|m,p,a,s") {
+			r.Signals = append(r.Signals, "H2 pseudo order m,p,a,s (Firefox Akamai field 4)")
+		} else {
+			r.Conflicts = append(r.Conflicts,
+				fmt.Sprintf("H2 pseudo order not Firefox m,p,a,s — got %s", r.H2Akamai))
+		}
+		if strings.HasPrefix(h2.PriorityFingerprint(), "hdr:") {
+			r.Signals = append(r.Signals, "H2 Priority HTTP header present (hdr:…)")
+		}
+		if h3PU {
+			r.Signals = append(r.Signals, "H3 PRIORITY_UPDATE present")
+		} else {
+			r.Signals = append(r.Signals,
+				"H3 PRIORITY_UPDATE absent on first /probe control flight — normal for live Firefox; not a conflict")
+		}
+		add(h3GF, "H3 GREASE frames present (neqo paints reserved types)",
+			"H3 lacks GREASE frames — sterile parrot smell")
+		add(tpG, "QUIC GREASE transport parameters present",
+			"QUIC TPs lack GREASE — naive Initial")
+		if hasTPID(tps, 0x3128) {
+			r.Conflicts = append(r.Conflicts,
+				"Google QUIC TP 0x3128 present — Chromium-family tell on a Firefox claim")
+		} else {
+			r.Signals = append(r.Signals, "No Google QUIC TP 0x3128 (neqo / Firefox)")
+		}
+		if h3HasSetting(h3, 0x2b603742) && h3HasSetting(h3, 0xffd277) {
+			r.Signals = append(r.Signals,
+				"H3 WebTransport draft SETTINGS 0x2b603742 + 0xffd277 (neqo fingerprint)")
+		} else {
+			r.Conflicts = append(r.Conflicts,
+				"Missing neqo WebTransport draft SETTINGS (0x2b603742 / 0xffd277)")
+		}
+		if h3HasSetting(h3, 0x6) {
+			r.Conflicts = append(r.Conflicts,
+				"H3 SETTINGS 0x6 (MAX_FIELD_SECTION_SIZE) present — Chromium-shaped, not typical live Firefox")
+		} else {
+			r.Signals = append(r.Signals, "No H3 SETTINGS 0x6 — contrasts Chromium live control streams")
+		}
+		if gq {
+			r.Signals = append(r.Signals, "grease_quic_bit present on Initial")
+		} else {
+			r.Signals = append(r.Signals, "grease_quic_bit absent (gq0) — matches live Firefox/Chrome Windows captures")
+		}
+		if h3GF && tpG {
+			r.Signals = append(r.Signals, "GREASE painted on both H3 frames and QUIC TPs")
+		} else if h3GF != tpG {
+			r.Conflicts = append(r.Conflicts,
+				"GREASE on only one of H3/QUIC — mixed stack / half-upgraded impersonator")
+		}
 	default: // teaching
 		add(h2PU, "H2 PRIORITY_UPDATE present (Akamai field 3 ≠ 0)",
 			"H2 missing PRIORITY_UPDATE while claiming Chromium EPS")
@@ -345,15 +411,190 @@ func CrossLayerFromParsed(h2 *H2Session, h3 *H3Session, tps []TransportParam, mo
 		fmt.Sprintf("QUIC TP:    %s", r.QUICTPFP),
 	)
 	if r.Coherent {
-		if mode == CrossLayerLive {
+		switch mode {
+		case CrossLayerLive:
 			r.Findings = append(r.Findings, "Live Chrome H2/H3/QUIC are coherent with documented first-flight EPS/gq timing gaps")
-		} else {
+		case CrossLayerFirefox:
+			r.Findings = append(r.Findings, "Live Firefox H2/H3/QUIC are coherent on neqo tells (mpas, WT SETTINGS, no 0x3128)")
+		default:
 			r.Findings = append(r.Findings, "Chrome-family fixtures are cross-layer coherent on GREASE + PRIORITY_UPDATE")
 		}
 	} else {
-		r.Findings = append(r.Findings, fmt.Sprintf("%d cross-layer conflict(s) — investigate before trusting a 'Chrome' claim", len(r.Conflicts)))
+		claim := "Chrome"
+		if mode == CrossLayerFirefox {
+			claim = "Firefox"
+		}
+		r.Findings = append(r.Findings, fmt.Sprintf("%d cross-layer conflict(s) — investigate before trusting a '%s' claim", len(r.Conflicts), claim))
 	}
 	return r
+}
+
+// FamilyContrastReport compares live Chromium vs Firefox surfaces (Lab 11 family split).
+type FamilyContrastReport struct {
+	ChromeH2   string
+	FirefoxH2  string
+	ChromeH3   string
+	FirefoxH3  string
+	ChromeTP   string
+	FirefoxTP  string
+	H3Diff     *GoldenDiff
+	Agreements []string
+	Splits     []string
+	Findings   []string
+}
+
+// AnalyzeChromiumVsFirefox contrasts live chrome_* / firefox_* fixtures.
+// H3 SETTINGS (0x6 + GREASE vs WT draft ids) and QUIC TP 0x3128 are the sharp splits.
+func AnalyzeChromiumVsFirefox() (*FamilyContrastReport, error) {
+	_, h2cRaw, err := LoadFixtureBytes("h2_chrome")
+	if err != nil {
+		return nil, err
+	}
+	h2c, err := ParseH2(h2cRaw)
+	if err != nil {
+		return nil, err
+	}
+	_, h2fRaw, err := LoadFixtureBytes("h2_firefox")
+	if err != nil {
+		return nil, err
+	}
+	h2f, err := ParseH2(h2fRaw)
+	if err != nil {
+		return nil, err
+	}
+	_, h3cRaw, err := LoadFixtureBytes("h3_chrome")
+	if err != nil {
+		return nil, err
+	}
+	h3c, err := ParseH3(h3cRaw)
+	if err != nil {
+		return nil, err
+	}
+	_, h3fRaw, err := LoadFixtureBytes("h3_firefox")
+	if err != nil {
+		return nil, err
+	}
+	h3f, err := ParseH3(h3fRaw)
+	if err != nil {
+		return nil, err
+	}
+	chromeTP, _, err := LoadTransportParamsForGolden("quic_initial_chrome")
+	if err != nil {
+		return nil, err
+	}
+	ffTP, _, err := LoadTransportParamsForGolden("quic_initial_firefox")
+	if err != nil {
+		return nil, err
+	}
+
+	r := &FamilyContrastReport{
+		ChromeH2:  h2c.AkamaiH2Fingerprint(),
+		FirefoxH2: h2f.AkamaiH2Fingerprint(),
+		ChromeH3:  H3Fingerprint(h3c),
+		FirefoxH3: H3Fingerprint(h3f),
+		ChromeTP:  TransportFingerprint(chromeTP),
+		FirefoxTP: TransportFingerprint(ffTP),
+		H3Diff:    DiffH3Sessions(h3c, h3f),
+	}
+
+	if countH3GREASEFrames(h3c) > 0 && countH3GREASEFrames(h3f) > 0 {
+		r.Agreements = append(r.Agreements, "Both paint H3 GREASE frames")
+	}
+	if countTPGREASE(chromeTP) > 0 && countTPGREASE(ffTP) > 0 {
+		r.Agreements = append(r.Agreements, "Both paint QUIC GREASE transport parameters")
+	}
+	if !hasGreaseQUICBit(chromeTP) && !hasGreaseQUICBit(ffTP) {
+		r.Agreements = append(r.Agreements, "Both live Initials omit grease_quic_bit (gq0)")
+	}
+	if strings.Contains(r.ChromeH2, "hdr:") && strings.Contains(r.FirefoxH2, "hdr:") {
+		r.Agreements = append(r.Agreements, "Both live H2 request flights carry Priority HTTP header (hdr:…)")
+	}
+
+	if strings.Contains(r.ChromeH2, "|m,a,s,p") && strings.Contains(r.FirefoxH2, "|m,p,a,s") {
+		r.Splits = append(r.Splits, "H2 pseudo order: Chromium m,a,s,p vs Firefox m,p,a,s")
+	}
+	if h3HasSetting(h3c, 0x6) && !h3HasSetting(h3f, 0x6) {
+		r.Splits = append(r.Splits, "H3 SETTINGS 0x6 MAX_FIELD_SECTION_SIZE: Chromium yes / Firefox no")
+	}
+	if h3HasSetting(h3f, 0x2b603742) && !h3HasSetting(h3c, 0x2b603742) {
+		r.Splits = append(r.Splits, "H3 WebTransport draft 0x2b603742/0xffd277: Firefox/neqo yes / Chrome no")
+	}
+	if h3c.PriorityFingerprint() != "0" && h3f.PriorityFingerprint() == "0" {
+		r.Splits = append(r.Splits, "H3 PRIORITY_UPDATE on first control flight: Chrome yes / Firefox often no")
+	}
+	if hasTPID(chromeTP, 0x3128) && !hasTPID(ffTP, 0x3128) {
+		r.Splits = append(r.Splits, "QUIC Google TP 0x3128: Chromium yes / Firefox no")
+	}
+	if countH3GREASESettings(h3c) > 0 && countH3GREASESettings(h3f) == 0 {
+		r.Splits = append(r.Splits, "H3 GREASE SETTINGS ids: Chromium yes / Firefox uses fixed draft ids instead")
+	}
+
+	r.Findings = append(r.Findings,
+		fmt.Sprintf("Chrome  H2=%s", r.ChromeH2),
+		fmt.Sprintf("Firefox H2=%s", r.FirefoxH2),
+		fmt.Sprintf("Chrome  H3=%s", r.ChromeH3),
+		fmt.Sprintf("Firefox H3=%s", r.FirefoxH3),
+		fmt.Sprintf("Chrome  TP=%s", r.ChromeTP),
+		fmt.Sprintf("Firefox TP=%s", r.FirefoxTP),
+		fmt.Sprintf("H3 chrome-vs-firefox agreement: %.1f%% — low score is expected (different families)", r.H3Diff.Score),
+	)
+	if r.H3Diff.Score > 55 {
+		r.Findings = append(r.Findings, "H3 fingerprints unusually close — check fixture mix-up")
+	} else {
+		r.Findings = append(r.Findings, "H3 family split is large enough to gate 'Chrome' vs 'Firefox' H3 claims in CI")
+	}
+	return r, nil
+}
+
+// FormatFamilyContrast writes the Chromium-vs-Firefox Lab 11 report.
+func FormatFamilyContrast(w io.Writer, r *FamilyContrastReport) {
+	fmt.Fprintln(w, "═══ Chromium vs Firefox family contrast ═══")
+	fmt.Fprintln(w, "\n── Fingerprints ──")
+	fmt.Fprintf(w, "Chrome  H2: %s\n", r.ChromeH2)
+	fmt.Fprintf(w, "Firefox H2: %s\n", r.FirefoxH2)
+	fmt.Fprintf(w, "Chrome  H3: %s\n", r.ChromeH3)
+	fmt.Fprintf(w, "Firefox H3: %s\n", r.FirefoxH3)
+	fmt.Fprintf(w, "Chrome  TP: %s\n", r.ChromeTP)
+	fmt.Fprintf(w, "Firefox TP: %s\n", r.FirefoxTP)
+	fmt.Fprintln(w, "\n── Shared signals ──")
+	if len(r.Agreements) == 0 {
+		fmt.Fprintln(w, "  (none)")
+	}
+	for _, s := range r.Agreements {
+		fmt.Fprintf(w, "  ✓ %s\n", s)
+	}
+	fmt.Fprintln(w, "\n── Family splits ──")
+	if len(r.Splits) == 0 {
+		fmt.Fprintln(w, "  (none)")
+	}
+	for _, s := range r.Splits {
+		fmt.Fprintf(w, "  ✗ %s\n", s)
+	}
+	fmt.Fprintln(w, "\n── Findings ──")
+	for _, f := range r.Findings {
+		fmt.Fprintf(w, "• %s\n", f)
+	}
+}
+
+func h3HasSetting(s *H3Session, id uint64) bool {
+	if s == nil {
+		return false
+	}
+	for _, st := range s.Settings {
+		if !st.GREASE && st.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func hasTPID(tps []TransportParam, id uint64) bool {
+	for _, tp := range tps {
+		if tp.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 // LoadTransportParamsForGolden loads TPs from a quic Initial fixture or raw quic_tp blob.
@@ -417,7 +658,14 @@ func FormatGoldenDiff(w io.Writer, d *GoldenDiff) {
 
 // FormatCrossLayer writes the H2/H3/QUIC coherence report.
 func FormatCrossLayer(w io.Writer, r *CrossLayerReport) {
-	fmt.Fprintln(w, "═══ Cross-layer Chrome-family coherence ═══")
+	title := "Cross-layer Chrome-family coherence"
+	switch r.Family {
+	case "firefox":
+		title = "Cross-layer Firefox/neqo coherence"
+	case "teaching":
+		title = "Cross-layer Chrome teaching coherence"
+	}
+	fmt.Fprintf(w, "═══ %s ═══\n", title)
 	fmt.Fprintf(w, "Coherent: %v\n", r.Coherent)
 	fmt.Fprintln(w, "\n── Fingerprints ──")
 	fmt.Fprintf(w, "H2 Akamai: %s\n", r.H2Akamai)

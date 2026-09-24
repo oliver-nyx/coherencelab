@@ -899,13 +899,14 @@ Static table indices differ from HPACK Ã¢â‚¬â€ :method GET is QPACK 1
 	goldenCmd := &cobra.Command{
 		Use:   "golden",
 		Short: "Diff QUIC/H3 golden fingerprints (chrome-like vs naive) + cross-layer coherence",
-		Long: `Lab 11 â€” lock live Chrome QUIC TP / crafted H3 fingerprints, then score a naive
+		Long: `Lab 11 — lock live Chrome/Firefox QUIC TP and H3 fingerprints, then score a naive
 stack against them. Default run compares bundled fixtures to minimal ones and
-prints live + teaching cross-layer coherence reports.`,
+prints Chromium + Firefox cross-layer reports plus a Chromium-vs-Firefox family contrast.`,
 		Example: `  coherencelab lab golden
   coherencelab lab golden --quic quic_initial_chrome --vs quic_tp_minimal
   coherencelab lab golden --quic quic_initial_crafted --vs quic_tp_minimal
   coherencelab lab golden --h3 h3_chrome --vs-h3 h3_minimal
+  coherencelab lab golden --h3 h3_firefox --vs-h3 h3_chrome
   coherencelab lab golden --cross`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ran := false
@@ -970,8 +971,25 @@ prints live + teaching cross-layer coherence reports.`,
 				if ran {
 					fmt.Fprintln(os.Stdout)
 				}
-				fmt.Fprintln(os.Stderr, "cross-layer: live H2/QUIC + crafted H3")
+				fmt.Fprintln(os.Stderr, "cross-layer: live Chrome H2/H3/QUIC")
 				dissect.FormatCrossLayer(os.Stdout, r)
+
+				ff, err := dissect.AnalyzeFirefoxFamilyCrossLayer()
+				if err != nil {
+					return err
+				}
+				fmt.Fprintln(os.Stdout)
+				fmt.Fprintln(os.Stderr, "cross-layer: live Firefox H2/H3/QUIC")
+				dissect.FormatCrossLayer(os.Stdout, ff)
+
+				fam, err := dissect.AnalyzeChromiumVsFirefox()
+				if err != nil {
+					return err
+				}
+				fmt.Fprintln(os.Stdout)
+				fmt.Fprintln(os.Stderr, "family contrast: Chromium vs Firefox")
+				dissect.FormatFamilyContrast(os.Stdout, fam)
+
 				teach, err := dissect.AnalyzeTeachingChromeFamilyCrossLayer()
 				if err != nil {
 					return err
@@ -991,7 +1009,7 @@ prints live + teaching cross-layer coherence reports.`,
 	goldenCmd.Flags().StringVar(&goldenQUICVs, "vs", "", "QUIC Initial or TP fixture to compare")
 	goldenCmd.Flags().StringVar(&goldenH3Ref, "h3", "", "HTTP/3 fixture (ref)")
 	goldenCmd.Flags().StringVar(&goldenH3Vs, "vs-h3", "", "HTTP/3 fixture to compare")
-	goldenCmd.Flags().BoolVar(&goldenCross, "cross", false, "H2/H3/QUIC chrome-family coherence report")
+	goldenCmd.Flags().BoolVar(&goldenCross, "cross", false, "H2/H3/QUIC Chrome + Firefox coherence + family contrast")
 
 	listCmd := &cobra.Command{
 		Use:   "fixtures",
@@ -1173,7 +1191,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.9.6")
+			fmt.Println("coherencelab v1.9.7")
 		},
 	}
 }

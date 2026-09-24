@@ -45,6 +45,8 @@ Firefox contrast (neqo — WebTransport draft SETTINGS, GREASE frame, often **no
 ```bash
 ./bin/coherencelab lab h3 --fixture h3_firefox
 # golden ≈ 1,7,2b603742,ffd277,33,8|gf1|0
+./bin/coherencelab lab golden --h3 h3_firefox --vs-h3 h3_chrome
+./bin/coherencelab lab golden --cross   # includes Firefox cross-layer + family contrast
 ```
 
 Confirm:

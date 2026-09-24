@@ -6,8 +6,8 @@ Labs 07–10 taught you to *read* H2 PRIORITY_UPDATE, H3 GREASE, and QUIC
 transport parameters. Lab 11 asks the RE question that actually catches
 impersonators:
 
-> Do the chrome-like fixtures tell **one family story** across layers — and
-> how far does a naive stack fall when scored against those goldens?
+> Do chrome-like fixtures tell **one family story** across layers — and how
+> far does Firefox/neqo diverge on the same surfaces?
 
 ## Fingerprints
 
@@ -23,7 +23,7 @@ omits `grease_quic_bit` (`gq0`) — do not treat `gq1` as universal.
 
 ## Exercise
 
-Default run (live chrome vs naive + live/teaching cross-layer):
+Default run (chrome-vs-naive + Chrome/Firefox cross-layer + family contrast):
 
 ```bash
 ./bin/coherencelab lab golden
@@ -41,24 +41,28 @@ Targeted diffs:
 ./bin/coherencelab lab golden --cross
 ```
 
-Firefox’s live Initial is a `CLQI` **flight** (CRYPTO split across Initials). Edge shares
-Chromium’s Google TP `0x3128` but paints a different wire **order** — useful for
-“same family, different build” demos.
 Confirm:
 
 1. Live QUIC vs minimal score is **low** (rich TP set + GREASE vs sparse)
 2. H3 chrome-vs-minimal score is **low** (no GREASE frames / no PRIORITY_UPDATE)
-3. Live cross-layer is **Coherent: true** with documented EPS/`gq` timing gaps as signals
-4. Teaching cross-layer (`h2_continuation` + `quic_initial_crafted`) is coherent on EPS + `gq1`
-5. Self-diff (`h3_chrome` vs `h3_chrome`) would score ~100% — CI lock
+3. Live Chrome cross-layer is **Coherent: true** with documented EPS/`gq` timing gaps
+4. Live Firefox cross-layer is **Coherent: true** on neqo tells (mpas, WT SETTINGS, no `0x3128`)
+5. Family contrast lists sharp splits: `m,a,s,p` vs `m,p,a,s`, H3 `0x6` vs WT draft ids, Google TP `0x3128`
+6. H3 chrome-vs-firefox agreement is **low** — different families, not a bug
+7. Teaching cross-layer (`h2_continuation` + `quic_initial_crafted`) is coherent on EPS + `gq1`
 
 Also visible on dissection:
 
 ```bash
 ./bin/coherencelab lab quic --fixture quic_initial_chrome   # live TP golden
-./bin/coherencelab lab quic --fixture quic_initial_crafted  # teaching gq1
-./bin/coherencelab lab h3 --fixture h3_chrome               # H3 golden
+./bin/coherencelab lab quic --fixture quic_initial_firefox  # CLQI flight, no 0x3128
+./bin/coherencelab lab h3 --fixture h3_chrome               # Chromium H3 golden
+./bin/coherencelab lab h3 --fixture h3_firefox              # neqo H3 golden
 ```
+
+Firefox’s live Initial is a `CLQI` **flight** (CRYPTO split across Initials). Edge shares
+Chromium’s Google TP `0x3128` but paints a different wire **order** — useful for
+“same family, different build” demos.
 
 ## CI gate idea
 
@@ -72,6 +76,7 @@ lock — same workflow as Lab 06 ClientHello corpus diffs, one layer up.
 1. Why collapse GREASE *values* but still require GREASE *presence* in the golden?
 2. What does “GREASE on H3 but not on QUIC TPs” imply about a claimed Chrome stack?
 3. Why can live H2 field 3 be `hdr:u=0,i` (header) while the teaching fixture uses `u=0,i` (PRIORITY_UPDATE frame)?
+4. Why is missing H3 PRIORITY_UPDATE a *signal* for Firefox but a *conflict* for Chrome?
 
 ## Next
 
