@@ -18,7 +18,7 @@ func TestContinuationMergeDecodesPseudo(t *testing.T) {
 	part2 := block[2:]
 
 	preface := []byte("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
-	h1 := makeFrame(FrameHeaders, 0x00, 1, part1)       // no END_HEADERS
+	h1 := makeFrame(FrameHeaders, 0x00, 1, part1)      // no END_HEADERS
 	c1 := makeFrame(FrameContinuation, 0x04, 1, part2) // END_HEADERS
 	buf := append(append(preface, h1...), c1...)
 
@@ -68,6 +68,36 @@ func TestCorpusSelfDiffHighScore(t *testing.T) {
 	d := DiffClientHellos(ref, ref)
 	if d.Score < 99 {
 		t.Fatalf("self-diff score %.1f diffs=%+v", d.Score, d.Diffs)
+	}
+}
+
+func TestCorpusOrderPermutationIsNotCritical(t *testing.T) {
+	raw, err := SynthClientHello("chrome_131", "example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, err := ParseClientHello(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parrot := *ref
+	order := append([]uint16(nil), ref.ExtensionOrder...)
+	if len(order) < 4 {
+		t.Fatal("hello too short to permute")
+	}
+	order[1], order[3] = order[3], order[1]
+	parrot.ExtensionOrder = order
+	d := DiffClientHellos(ref, &parrot)
+	for _, x := range d.Diffs {
+		if x.Severity == "critical" {
+			t.Fatalf("order-only delta must not be critical: %+v", x)
+		}
+		if x.Field == "extension_set" {
+			t.Fatalf("set should match after a shuffle: %+v", x)
+		}
+	}
+	if d.Score < 75 {
+		t.Fatalf("order-only shuffle score %.1f, want >= 75 (diffs=%+v)", d.Score, d.Diffs)
 	}
 }
 

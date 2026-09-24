@@ -34,6 +34,10 @@ go build -o bin/coherencelab ./cmd/coherencelab
 ./bin/coherencelab lab quic --fixture quic_vn
 ./bin/coherencelab lab golden
 ./bin/coherencelab lab corpus --fixture chrome_131 --utls firefox_133
+
+# Score a real capture against live Chrome / Edge / Firefox
+./bin/coherencelab fingerprint --dir ./captured
+./bin/coherencelab fingerprint --serve --addr 127.0.0.1:8443
 ```
 
 Read the code while you run it:
@@ -115,7 +119,7 @@ echo $?  # 0 = pass, 1 = critical failure or score below threshold
 Or use the reusable GitHub Action:
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.9.8
+- uses: oliver-nyx/coherencelab@v1.9.9
   with:
     profile: chrome-131-win
     min-score: "90"
@@ -414,6 +418,8 @@ coherencelab/
 - [x] H3 capture keeps control stream open for late PRIORITY_UPDATE; Firefox live golden stays `|gf1|0` (honest — no frame in lab)
 - [x] CI guard: `*-live.bin` must stay protected in `gen_corpus.go`
 - [x] Chromium vs Firefox H3/QUIC family contrast in `lab golden --cross`
+- [x] Corpus diff scores extension *set*, not Chromium's permuted order
+- [x] `fingerprint` ranks a real client capture against the live Chrome/Edge/Firefox corpus
 - [ ] Live Safari ClientHello (requires macOS/iOS — deferred; skip on this host)
 
 ## Docs

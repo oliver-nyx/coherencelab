@@ -15,8 +15,8 @@ import (
 	"github.com/oliver-nyx/coherencelab/internal/capture"
 	"github.com/oliver-nyx/coherencelab/internal/compare"
 	"github.com/oliver-nyx/coherencelab/internal/dissect"
-	"github.com/oliver-nyx/coherencelab/internal/profile"
 	"github.com/oliver-nyx/coherencelab/internal/probe"
+	"github.com/oliver-nyx/coherencelab/internal/profile"
 	"github.com/oliver-nyx/coherencelab/internal/report"
 	"github.com/oliver-nyx/coherencelab/internal/scan"
 	"github.com/oliver-nyx/coherencelab/internal/ui"
@@ -49,6 +49,7 @@ bot detection failures in production HTTP clients and automation stacks.`,
 	cmd.AddCommand(captureCmd())
 	cmd.AddCommand(profilesCmd())
 	cmd.AddCommand(serveCmd())
+	cmd.AddCommand(fingerprintCmd())
 	cmd.AddCommand(uiCmd())
 	cmd.AddCommand(labCmd())
 	cmd.AddCommand(demoCmd())
@@ -58,15 +59,15 @@ bot detection failures in production HTTP clients and automation stacks.`,
 
 func scanCmd() *cobra.Command {
 	var (
-		profileID string
-		mode      string
-		probeURL  string
-		mutate    string
+		profileID  string
+		mode       string
+		probeURL   string
+		mutate     string
 		importPath string
-		adapter   string
-		insecure  bool
-		minScore  float64
-		ci        bool
+		adapter    string
+		insecure   bool
+		minScore   float64
+		ci         bool
 	)
 	cmd := &cobra.Command{
 		Use:   "scan",
@@ -298,8 +299,8 @@ func defaultLabel(path, profileID string) string {
 func captureCmd() *cobra.Command {
 	var input, output string
 	cmd := &cobra.Command{
-		Use:   "capture",
-		Short: "Generate a profile YAML from a captured session JSON",
+		Use:     "capture",
+		Short:   "Generate a profile YAML from a captured session JSON",
 		Example: `  coherencelab capture --input session-capture.json --output profiles/my-client.yaml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if input == "" || output == "" {
@@ -368,6 +369,120 @@ func serveCmd() *cobra.Command {
 	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:8443", "listen address")
 	cmd.Flags().StringVar(&captureDir, "capture-dir", "", "directory to write captured JSON + profile YAML + ClientHello.bin")
 	return cmd
+}
+
+func fingerprintCmd() *cobra.Command {
+	var (
+		dir, hello, h2, h3, quic string
+		serve                    bool
+		addr                     string
+		timeout                  time.Duration
+	)
+	cmd := &cobra.Command{
+		Use:   "fingerprint",
+		Short: "Score a real client's wire capture against the live browser corpus",
+		Long: `Reads ClientHello, HTTP/2, HTTP/3, and QUIC bytes — from files, a capture
+directory, or a live probe — and ranks them against the checked-in Chrome, Edge,
+and Firefox corpus. This is the wire-level check: the client under test connects
+to the probe, and the bytes it actually sends are what get scored.
+
+Extension order is not a family verdict. Chromium permutes it; the report uses
+the extension set, H2 pseudo-header order, H3 settings, and QUIC transport
+parameters instead.`,
+		Example: `  coherencelab fingerprint --dir ./captured
+  coherencelab fingerprint --hello hello.bin --h2 h2.bin --h3 h3.bin --quic quic.bin
+  coherencelab fingerprint --serve --addr 127.0.0.1:8443`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var bundle dissect.CaptureBundle
+			switch {
+			case serve:
+				var err error
+				bundle, err = captureViaProbe(addr, dir, timeout)
+				if err != nil {
+					return err
+				}
+			case dir != "":
+				var err error
+				bundle, err = dissect.LoadCaptureDir(dir)
+				if err != nil {
+					return err
+				}
+			default:
+				read := func(path string) ([]byte, error) {
+					if path == "" {
+						return nil, nil
+					}
+					return os.ReadFile(path)
+				}
+				var err error
+				if bundle.Hello, err = read(hello); err != nil {
+					return err
+				}
+				if bundle.H2, err = read(h2); err != nil {
+					return err
+				}
+				if bundle.H3, err = read(h3); err != nil {
+					return err
+				}
+				if bundle.QUIC, err = read(quic); err != nil {
+					return err
+				}
+			}
+			rep, err := dissect.FingerprintCapture(bundle)
+			if err != nil {
+				return err
+			}
+			dissect.FormatFingerprint(os.Stdout, rep)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&dir, "dir", "", "capture directory from coherencelab serve --capture-dir")
+	cmd.Flags().StringVar(&hello, "hello", "", "ClientHello record bytes")
+	cmd.Flags().StringVar(&h2, "h2", "", "HTTP/2 client flight bytes")
+	cmd.Flags().StringVar(&h3, "h3", "", "HTTP/3 control-stream bytes")
+	cmd.Flags().StringVar(&quic, "quic", "", "QUIC Initial datagram or CLQI flight")
+	cmd.Flags().BoolVar(&serve, "serve", false, "start the probe and wait for one client")
+	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:8443", "probe address when --serve is set")
+	cmd.Flags().DurationVar(&timeout, "timeout", 90*time.Second, "how long --serve waits for a ClientHello")
+	return cmd
+}
+
+// captureViaProbe serves until a ClientHello lands, then waits briefly so H2/H3/QUIC
+// files from the same visit are on disk.
+func captureViaProbe(addr, dir string, timeout time.Duration) (dissect.CaptureBundle, error) {
+	if dir == "" {
+		dir = filepath.Join(os.TempDir(), "coherencelab-fingerprint")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return dissect.CaptureBundle{}, err
+	}
+	srv := probe.New(addr)
+	srv.CaptureDir = dir
+	if err := srv.Start(); err != nil {
+		return dissect.CaptureBundle{}, err
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_ = srv.Stop(ctx)
+	}()
+	fmt.Printf("Probe listening on https://%s/probe\n", addr)
+	fmt.Printf("Point the client under test at that URL (capture dir %s).\n", dir)
+	fmt.Printf("Waiting up to %s for a ClientHello…\n", timeout)
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if len(srv.LastClientHello()) > 0 {
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	if len(srv.LastClientHello()) == 0 {
+		return dissect.CaptureBundle{}, fmt.Errorf("no ClientHello captured within %s", timeout)
+	}
+	// H2 preface arrives with the request; H3/QUIC may follow on Alt-Svc.
+	time.Sleep(6 * time.Second)
+	return dissect.LoadCaptureDir(dir)
 }
 
 func uiCmd() *cobra.Command {
@@ -1191,7 +1306,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.9.8")
+			fmt.Println("coherencelab v1.9.9")
 		},
 	}
 }

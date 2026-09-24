@@ -1,4 +1,4 @@
-﻿package dissect
+package dissect
 
 import (
 	"os"

@@ -62,6 +62,27 @@ func AnalyzeExtensionPermutation(utlsClientID, sni string, n int) (*PermutationR
 	return rep, nil
 }
 
+// extensionSetSignature is the GREASE-stripped extension type set, sorted.
+// Chromium permutes wire order per handshake; the set is the stable identity.
+func extensionSetSignature(order []uint16) string {
+	vals := filterNonGREASE(order)
+	seen := make(map[uint16]struct{}, len(vals))
+	uniq := make([]uint16, 0, len(vals))
+	for _, v := range vals {
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		uniq = append(uniq, v)
+	}
+	sort.Slice(uniq, func(i, j int) bool { return uniq[i] < uniq[j] })
+	parts := make([]string, len(uniq))
+	for i, v := range uniq {
+		parts[i] = fmt.Sprintf("%d", v)
+	}
+	return strings.Join(parts, "-")
+}
+
 func extensionOrderSignature(order []uint16, stripGREASE bool) string {
 	parts := make([]string, 0, len(order))
 	for _, t := range order {

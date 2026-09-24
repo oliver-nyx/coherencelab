@@ -6,7 +6,7 @@ The RE workflow that separates serious work from JA3 screenshots:
 
 1. Capture a **real** ClientHello (browser → `coherencelab serve`).
 2. Synthesize what your **claimed** stack emits (`--utls chrome_131`).
-3. Diff weighted surfaces: skeleton, ALPS, ECH, ciphers, groups, JA3.
+3. Diff weighted surfaces: extension set, ALPS, ECH, ciphers, groups, JA3.
 
 JA3 can match while the extension skeleton disagrees — the report calls that out.
 
@@ -23,10 +23,13 @@ Cold-clone path (bundled **live** Chrome vs parrot):
 ./bin/coherencelab lab corpus --fixture edge_live --utls chrome_131
 ```
 
-Expect: live Chrome vs `HelloChrome_131` often lands ~50–70% with a **critical**
-`extension_skeleton` miss (ML-KEM hybrids, ALPS variant, GREASE placement).
+Expect: live Chrome vs `HelloChrome_131` often lands well below a self-diff.
+The miss that matters is `extension_set` (ML-KEM hybrids, ALPS variant, extra
+types) — **not** extension order. Chromium permutes order per handshake, so
+`extension_order` is reported as info and does not move the score. A JA3 miss
+with a matching set is permutation, not a different browser.
 Parrot-vs-parrot (`chrome_131_utls`) should score much higher.
-Live Firefox vs `firefox_133` should beat Chrome-parrot on the same capture.
+Live Firefox vs `firefox_133` should beat a Chrome parrot on the same capture.
 
 Capture your own:
 
@@ -41,9 +44,10 @@ coherencelab lab corpus --fixture chrome_131 --utls chrome_131
 
 | Field | Severity | Why |
 |-------|----------|-----|
-| extension_skeleton | critical | GREASE-stripped order is a stable family anchor |
+| extension_set | high | GREASE-stripped type set — stable family anchor |
+| extension_order | info | Chromium permutes this; not scored |
 | alps | critical | Chromium tell |
-| ja3 / ciphers / groups / alpn | high | Classic fingerprint dimensions |
+| ja3 / ciphers / groups / alpn | high | Classic fingerprint dimensions; JA3 also moves when order is shuffled |
 | ech / session_id_len | medium | Generation / middlebox-compat tells |
 
 ## Questions

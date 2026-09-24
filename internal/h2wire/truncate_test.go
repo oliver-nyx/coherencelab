@@ -1,4 +1,4 @@
-﻿package h2wire
+package h2wire
 
 import (
 	"testing"
