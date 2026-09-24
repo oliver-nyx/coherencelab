@@ -73,14 +73,14 @@ func hkdfExpandLabel(hash func() hash.Hash, secret []byte, label string, context
 
 // DecryptedInitial is an Initial packet after header + packet protection removal.
 type DecryptedInitial struct {
-	Header      *QUICLongHeader
+	Header       *QUICLongHeader
 	PacketNumber uint64
-	Payload     []byte
-	Frames      []QUICFrame
-	CryptoData  []byte // concatenated CRYPTO frame data (offset-ordered best-effort)
-	ClientHello *ClientHello
-	Transport   []TransportParam
-	Findings    []string
+	Payload      []byte
+	Frames       []QUICFrame
+	CryptoData   []byte // concatenated CRYPTO frame data (offset-ordered best-effort)
+	ClientHello  *ClientHello
+	Transport    []TransportParam
+	Findings     []string
 }
 
 // DecryptInitial parses and decrypts a QUICv1 client Initial UDP payload.
@@ -167,6 +167,7 @@ func DecryptInitial(b []byte) (*DecryptedInitial, error) {
 	out.CryptoData = gatherCRYPTO(out.Frames)
 	if len(out.CryptoData) > 0 {
 		if ch, err := ParseClientHello(out.CryptoData); err == nil {
+			ch.QUIC = true
 			out.ClientHello = ch
 			if tp := extractQUICTransportParams(ch); tp != nil {
 				out.Transport = tp

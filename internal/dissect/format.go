@@ -47,8 +47,7 @@ func FormatClientHello(w io.Writer, ch *ClientHello) {
 	fmt.Fprintln(w, "\n── Fingerprints ──")
 	fmt.Fprintf(w, "JA3 raw:  %s\n", ch.JA3Raw())
 	fmt.Fprintf(w, "JA3 hash: %s\n", ch.JA3Hash())
-	fmt.Fprintf(w, "JA4*:     %s\n", ch.JA4())
-	fmt.Fprintln(w, "  (* JA4-inspired; see package docs before treating as FoxIO-canonical)")
+	fmt.Fprintf(w, "JA4:      %s\n", ch.JA4())
 	fmt.Fprintln(w, "\n── Findings ──")
 	for _, f := range ch.Findings() {
 		fmt.Fprintf(w, "• %s\n", f)

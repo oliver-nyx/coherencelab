@@ -123,6 +123,7 @@ func DecryptInitialFlight(datagrams [][]byte) (*DecryptedInitial, error) {
 	base.Transport = nil
 	if len(base.CryptoData) > 0 {
 		if ch, err := ParseClientHello(base.CryptoData); err == nil {
+			ch.QUIC = true
 			base.ClientHello = ch
 			if tp := extractQUICTransportParams(ch); tp != nil {
 				base.Transport = tp

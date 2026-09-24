@@ -119,7 +119,7 @@ echo $?  # 0 = pass, 1 = critical failure or score below threshold
 Or use the reusable GitHub Action:
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.9.9
+- uses: oliver-nyx/coherencelab@v1.9.10
   with:
     profile: chrome-131-win
     min-score: "90"
@@ -420,6 +420,7 @@ coherencelab/
 - [x] Chromium vs Firefox H3/QUIC family contrast in `lab golden --cross`
 - [x] Corpus diff scores extension *set*, not Chromium's permuted order
 - [x] `fingerprint` ranks a real client capture against the live Chrome/Edge/Firefox corpus
+- [x] Canonical FoxIO JA4 (sorted hex, SNI/ALPN omitted from the extension hash, `q` on QUIC)
 - [ ] Live Safari ClientHello (requires macOS/iOS — deferred; skip on this host)
 
 ## Docs

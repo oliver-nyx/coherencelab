@@ -176,7 +176,7 @@ func FormatHelloDiff(w io.Writer, d *HelloDiff) {
 	fmt.Fprintln(w, "═══ ClientHello corpus diff (capture vs parrot) ═══")
 	fmt.Fprintf(w, "Score: %.1f%%\n", d.Score)
 	fmt.Fprintf(w, "JA3  ref=%s\n     par=%s\n", d.RefJA3, d.ParrotJA3)
-	fmt.Fprintf(w, "JA4* ref=%s\n     par=%s\n", d.RefJA4, d.ParrotJA4)
+	fmt.Fprintf(w, "JA4  ref=%s\n     par=%s\n", d.RefJA4, d.ParrotJA4)
 	fmt.Fprintln(w, "\n── Matches ──")
 	if len(d.Matches) == 0 {
 		fmt.Fprintln(w, "  (none)")

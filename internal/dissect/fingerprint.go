@@ -341,7 +341,7 @@ func LoadCaptureDir(dir string) (CaptureBundle, error) {
 func FormatFingerprint(w io.Writer, rep *FingerprintReport) {
 	fmt.Fprintln(w, "═══ Wire fingerprint vs live corpus ═══")
 	if rep.JA3 != "" {
-		fmt.Fprintf(w, "JA3  %s\nJA4* %s\n", rep.JA3, rep.JA4)
+		fmt.Fprintf(w, "JA3  %s\nJA4  %s\n", rep.JA3, rep.JA4)
 	}
 	if rep.H2 != "" {
 		fmt.Fprintf(w, "H2   %s\n", rep.H2)

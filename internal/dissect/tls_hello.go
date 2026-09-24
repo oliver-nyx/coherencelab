@@ -7,30 +7,30 @@ import (
 
 // Extension type IDs (IANA TLS).
 const (
-	ExtServerName           uint16 = 0
-	ExtStatusRequest        uint16 = 5
-	ExtSupportedGroups      uint16 = 10
-	ExtECPointFormats       uint16 = 11
-	ExtSignatureAlgorithms  uint16 = 13
-	ExtALPN                 uint16 = 16
-	ExtSCT                  uint16 = 18
-	ExtPadding              uint16 = 21
-	ExtExtendedMasterSecret uint16 = 23
-	ExtCompressCertificate  uint16 = 27
-	ExtSessionTicket        uint16 = 35
-	ExtPreSharedKey         uint16 = 41
-	ExtEarlyData            uint16 = 42
-	ExtSupportedVersions    uint16 = 43
-	ExtCookie               uint16 = 44
-	ExtPSKKeyExchangeModes  uint16 = 45
-	ExtCertificateAuthorities uint16 = 47
-	ExtPostHandshakeAuth    uint16 = 49
+	ExtServerName              uint16 = 0
+	ExtStatusRequest           uint16 = 5
+	ExtSupportedGroups         uint16 = 10
+	ExtECPointFormats          uint16 = 11
+	ExtSignatureAlgorithms     uint16 = 13
+	ExtALPN                    uint16 = 16
+	ExtSCT                     uint16 = 18
+	ExtPadding                 uint16 = 21
+	ExtExtendedMasterSecret    uint16 = 23
+	ExtCompressCertificate     uint16 = 27
+	ExtSessionTicket           uint16 = 35
+	ExtPreSharedKey            uint16 = 41
+	ExtEarlyData               uint16 = 42
+	ExtSupportedVersions       uint16 = 43
+	ExtCookie                  uint16 = 44
+	ExtPSKKeyExchangeModes     uint16 = 45
+	ExtCertificateAuthorities  uint16 = 47
+	ExtPostHandshakeAuth       uint16 = 49
 	ExtSignatureAlgorithmsCert uint16 = 50
-	ExtKeyShare             uint16 = 51
-	ExtRenegotiationInfo    uint16 = 0xff01
-	ExtEncryptedClientHello uint16 = 0xfe0d
+	ExtKeyShare                uint16 = 51
+	ExtRenegotiationInfo       uint16 = 0xff01
+	ExtEncryptedClientHello    uint16 = 0xfe0d
 	// Chrome / BoringSSL application settings (ALPS), not final IANA.
-	ExtApplicationSettings  uint16 = 17513 // 0x4469
+	ExtApplicationSettings    uint16 = 17513 // 0x4469
 	ExtApplicationSettingsNew uint16 = 17613
 )
 
@@ -64,18 +64,21 @@ type ClientHello struct {
 	Extensions         []Extension
 
 	// Convenience indexes
-	SNI                string
-	ALPN               []string
-	SupportedVersions  []uint16
-	SupportedGroups    []uint16
-	ECPointFormats     []uint8
-	SignatureAlgs      []uint16
-	KeyShares          []KeyShare
-	HasECH             bool
-	HasALPS            bool
-	ExtensionOrder     []uint16
-	GREASECipherCount  int
+	SNI                  string
+	ALPN                 []string
+	SupportedVersions    []uint16
+	SupportedGroups      []uint16
+	ECPointFormats       []uint8
+	SignatureAlgs        []uint16
+	KeyShares            []KeyShare
+	HasECH               bool
+	HasALPS              bool
+	ExtensionOrder       []uint16
+	GREASECipherCount    int
 	GREASEExtensionCount int
+	// QUIC is set when this hello was recovered from a QUIC Initial, so JA4
+	// uses the q prefix instead of t.
+	QUIC bool
 
 	Raw []byte // original bytes (record or raw handshake, as provided)
 }

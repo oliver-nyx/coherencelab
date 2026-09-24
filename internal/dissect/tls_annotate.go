@@ -24,7 +24,7 @@ func annotateClientHello(ch *ClientHello) {
 		case ext.Type == ExtCompressCertificate:
 			ext.Note = "compress_certificate (RFC 8879) — browsers advertise it; Chromium often brotli, Firefox often zlib. Rare in curl/Go defaults."
 		case ext.Type == ExtServerName:
-			ext.Note = "SNI is cleartext unless ECH is used. For JA3/JA4, SNI presence flips the 't' vs 'd' / ALpn dimension depending on spec variant."
+			ext.Note = "SNI is cleartext unless ECH is used. JA4 records presence as d (domain) or i (no SNI); the value itself is not in the hash."
 		}
 	}
 

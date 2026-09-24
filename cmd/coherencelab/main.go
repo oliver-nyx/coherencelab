@@ -1306,7 +1306,7 @@ func versionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("coherencelab v1.9.9")
+			fmt.Println("coherencelab v1.9.10")
 		},
 	}
 }
