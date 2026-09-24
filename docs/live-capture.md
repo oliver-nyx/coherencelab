@@ -73,7 +73,7 @@ an async Initial tee so multi-datagram Firefox flights are not starved.
 | `h2_chrome` / `h2_edge` | request flight: SETTINGS + WINDOW_UPDATE + HEADERS; Akamai `…\|hdr:u=0,i\|m,a,s,p` |
 | `h2_firefox` | request flight; Akamai `…\|hdr:u=0,i\|m,p,a,s` |
 | `h3_chrome` / `h3_edge` | SETTINGS + GREASE + PRIORITY_UPDATE on control stream |
-| `h3_firefox` | SETTINGS (`1,7` + WT draft `0x2b603742`/`0xffd277` + `0x33`/`0x8`) + GREASE frame; often **no** PRIORITY_UPDATE on first `/probe` control flight |
+| `h3_firefox` | SETTINGS (`1,7` + WT draft `0x2b603742`/`0xffd277` + `0x33`/`0x8`) + GREASE frame; **no** PRIORITY_UPDATE on control stream in live lab captures (first `/probe` **and** tab-focus with `send_background_tabs_deprioritization`) — Chrome/Edge remain the PRIORITY_UPDATE teaching surface; golden `` `|gf1|0` `` is intentional |
 | `quic_initial_chrome` | decryptable Initial; often `gq0` (no grease_quic_bit) |
 | `quic_initial_edge` | decryptable Initial; TP order differs from Chrome; `gq0` |
 | `quic_initial_firefox` | `CLQI` flight (CRYPTO split across Initials); no Google `0x3128`; `gq0` |

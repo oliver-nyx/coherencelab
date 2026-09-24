@@ -77,7 +77,7 @@ You can also probe public fingerprint endpoints (use responsibly):
 ### Option A â€” marketplace-style composite action
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.9.7
+- uses: oliver-nyx/coherencelab@v1.9.8
   with:
     profile: chrome-131-win
     min-score: "90"

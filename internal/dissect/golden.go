@@ -343,7 +343,7 @@ func CrossLayerFromParsed(h2 *H2Session, h3 *H3Session, tps []TransportParam, mo
 			r.Signals = append(r.Signals, "H3 PRIORITY_UPDATE present")
 		} else {
 			r.Signals = append(r.Signals,
-				"H3 PRIORITY_UPDATE absent on first /probe control flight — normal for live Firefox; not a conflict")
+				"H3 PRIORITY_UPDATE absent on live Firefox control stream — normal (family signal vs Chrome); not a conflict")
 		}
 		add(h3GF, "H3 GREASE frames present (neqo paints reserved types)",
 			"H3 lacks GREASE frames — sterile parrot smell")
@@ -520,7 +520,7 @@ func AnalyzeChromiumVsFirefox() (*FamilyContrastReport, error) {
 		r.Splits = append(r.Splits, "H3 WebTransport draft 0x2b603742/0xffd277: Firefox/neqo yes / Chrome no")
 	}
 	if h3c.PriorityFingerprint() != "0" && h3f.PriorityFingerprint() == "0" {
-		r.Splits = append(r.Splits, "H3 PRIORITY_UPDATE on first control flight: Chrome yes / Firefox often no")
+		r.Splits = append(r.Splits, "H3 PRIORITY_UPDATE on control stream: Chrome yes / Firefox live no")
 	}
 	if hasTPID(chromeTP, 0x3128) && !hasTPID(ffTP, 0x3128) {
 		r.Splits = append(r.Splits, "QUIC Google TP 0x3128: Chromium yes / Firefox no")

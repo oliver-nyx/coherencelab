@@ -115,7 +115,7 @@ echo $?  # 0 = pass, 1 = critical failure or score below threshold
 Or use the reusable GitHub Action:
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.9.7
+- uses: oliver-nyx/coherencelab@v1.9.8
   with:
     profile: chrome-131-win
     min-score: "90"
@@ -411,6 +411,7 @@ coherencelab/
 - [x] Live Chrome H3 control-stream fixture via serve HTTP/3
 - [x] Live Edge H3 control-stream fixture
 - [x] Live Firefox H3 control-stream fixture (needs `disable_when_third_party_roots_found=false`)
+- [x] H3 capture keeps control stream open for late PRIORITY_UPDATE; Firefox live golden stays `|gf1|0` (honest — no frame in lab)
 - [x] CI guard: `*-live.bin` must stay protected in `gen_corpus.go`
 - [x] Chromium vs Firefox H3/QUIC family contrast in `lab golden --cross`
 - [ ] Live Safari ClientHello (requires macOS/iOS — deferred; skip on this host)

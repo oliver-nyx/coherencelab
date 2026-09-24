@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -58,11 +59,50 @@ func (s *Server) startQUICCapture(cert tls.Certificate) error {
 	mux.HandleFunc("/probe", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("ok\n"))
 	})
+	// Multi-resource HTML keeps one H3 connection warm for PRIORITY_UPDATE
+	// experiments (Firefox live control streams still omit the frame in lab captures).
+	pageHTML := func(title, sibling string) http.HandlerFunc {
+		return func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = fmt.Fprintf(w, `<!doctype html><html><head><title>%s</title>
+<link rel="stylesheet" href="/asset/a.css">
+<script src="/asset/a.js"></script></head><body>
+<h1>%s</h1><img src="/asset/a.png" width="1" height="1" alt="">
+<p><a href="%s">sibling</a></p>
+<iframe src="/asset/frame.html" width="1" height="1"></iframe>
+</body></html>`, title, title, sibling)
+		}
+	}
+	mux.HandleFunc("/page", pageHTML("page-a", "/page2"))
+	mux.HandleFunc("/page2", pageHTML("page-b", "/page"))
+	mux.HandleFunc("/asset/", func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, ".css"):
+			w.Header().Set("Content-Type", "text/css")
+			_, _ = w.Write([]byte("body{margin:0}"))
+		case strings.HasSuffix(r.URL.Path, ".js"):
+			w.Header().Set("Content-Type", "application/javascript")
+			_, _ = w.Write([]byte("void 0"))
+		case strings.HasSuffix(r.URL.Path, ".png"):
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write([]byte{
+				0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+				0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+				0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00,
+				0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+				0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
+				0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+			})
+		default:
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte("<html><body>f</body></html>"))
+		}
+	})
 	h3 := &http3.Server{
 		Handler:   mux,
 		TLSConfig: tlsConf,
 		QUICConfig: &quic.Config{
-			MaxIdleTimeout: 30 * time.Second,
+			MaxIdleTimeout: 45 * time.Second,
 		},
 	}
 
@@ -128,7 +168,8 @@ func (s *Server) handleH3ConnManual(ctx context.Context, conn *quic.Conn) {
 	open = dissect.AppendH3Frame(open, 0x04, settings)
 	_, _ = ctrl.Write(open)
 
-	capCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	// Keep the session open long enough for Firefox tab-focus PRIORITY_UPDATE.
+	capCtx, cancel := context.WithTimeout(ctx, 35*time.Second)
 	defer cancel()
 
 	var wg sync.WaitGroup
@@ -151,7 +192,6 @@ func (s *Server) captureH3ControlStream(ctx context.Context, conn *quic.Conn) {
 			return
 		}
 		go func(str *quic.ReceiveStream) {
-			_ = str.SetReadDeadline(time.Now().Add(5 * time.Second))
 			typ, _, err := readVarint(str)
 			if err != nil {
 				return
@@ -161,11 +201,44 @@ func (s *Server) captureH3ControlStream(ctx context.Context, conn *quic.Conn) {
 				_, _ = io.Copy(io.Discard, io.LimitReader(str, 64<<10))
 				return
 			}
-			body, _ := io.ReadAll(io.LimitReader(str, 256<<10))
-			if len(body) == 0 {
-				return
+			// Incremental read: Firefox may send SETTINGS+GREASE immediately and
+			// PRIORITY_UPDATE only after a later tab-focus change.
+			var body []byte
+			buf := make([]byte, 4096)
+			deadline := time.Now().Add(30 * time.Second)
+			for time.Now().Before(deadline) {
+				select {
+				case <-ctx.Done():
+					if len(body) > 0 {
+						s.persistH3Control(body)
+					}
+					return
+				default:
+				}
+				_ = str.SetReadDeadline(time.Now().Add(1500 * time.Millisecond))
+				n, err := str.Read(buf)
+				if n > 0 {
+					body = append(body, buf[:n]...)
+					s.persistH3Control(body)
+					if sess, perr := dissect.ParseH3(body); perr == nil {
+						for _, fr := range sess.Frames {
+							if fr.Type == dissect.H3FramePriorityUpdateRequest || fr.Type == dissect.H3FramePriorityUpdatePush {
+								log.Printf("h3 PRIORITY_UPDATE observed (%d control bytes)", len(body))
+								return
+							}
+						}
+					}
+				}
+				if err != nil {
+					if ne, ok := err.(net.Error); ok && ne.Timeout() {
+						continue
+					}
+					break
+				}
 			}
-			s.persistH3Control(body)
+			if len(body) > 0 {
+				s.persistH3Control(body)
+			}
 		}(str)
 	}
 }
@@ -178,15 +251,89 @@ func (s *Server) serveH3Requests(ctx context.Context, conn *quic.Conn) {
 		}
 		go func(str *quic.Stream) {
 			defer str.Close()
-			_ = str.SetReadDeadline(time.Now().Add(3 * time.Second))
-			_, _ = io.Copy(io.Discard, io.LimitReader(str, 256<<10))
+			_ = str.SetReadDeadline(time.Now().Add(8 * time.Second))
+			req, _ := io.ReadAll(io.LimitReader(str, 256<<10))
+			path := h3RequestPathHint(req)
+			log.Printf("h3 request stream id=%d path=%q %d bytes", str.StreamID(), path, len(req))
+			if len(req) > 0 {
+				s.persistH3Request(int64(str.StreamID()), req)
+			}
+			body, _ := h3ProbeBody(path)
 			qpack := []byte{0x00, 0x00, 0xd9}
 			var resp []byte
 			resp = dissect.AppendH3Frame(resp, 0x01, qpack)
-			resp = dissect.AppendH3Frame(resp, 0x00, []byte("ok\n"))
+			// Optional hold for tab-focus PRIORITY_UPDATE experiments (COHERENCELAB_H3_HOLD=1).
+			hold := os.Getenv("COHERENCELAB_H3_HOLD") != "" &&
+				(strings.HasPrefix(path, "/page") || path == "/probe" || path == "/")
+			if hold && len(body) > 16 {
+				resp = dissect.AppendH3Frame(resp, 0x00, body[:16])
+				_, _ = str.Write(resp)
+				select {
+				case <-ctx.Done():
+				case <-time.After(18 * time.Second):
+				}
+				_, _ = str.Write(dissect.AppendH3Frame(nil, 0x00, body[16:]))
+				return
+			}
+			resp = dissect.AppendH3Frame(resp, 0x00, body)
 			_, _ = str.Write(resp)
 		}(str)
 	}
+}
+
+// h3RequestPathHint peeks QPACK HEADERS literals for :path (Firefox often
+// sends custom paths as literals — enough for probe routing).
+func h3RequestPathHint(req []byte) string {
+	s := string(req)
+	for _, p := range []string{"/asset/a.css", "/asset/a.js", "/asset/a.png", "/asset/frame.html", "/page2", "/page", "/probe", "/"} {
+		if strings.Contains(s, p) {
+			return p
+		}
+	}
+	return "/probe"
+}
+
+func h3ProbeBody(path string) ([]byte, string) {
+	switch path {
+	case "/asset/a.css":
+		return []byte("body{margin:0}"), "text/css"
+	case "/asset/a.js":
+		return []byte("void 0"), "application/javascript"
+	case "/asset/a.png":
+		return []byte{
+			0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+			0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+			0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00,
+			0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+			0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
+			0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+		}, "image/png"
+	case "/asset/frame.html":
+		return []byte("<html><body>f</body></html>"), "text/html; charset=utf-8"
+	case "/page2":
+		return []byte(`<!doctype html><html><head><title>page-b</title>
+<link rel="stylesheet" href="/asset/a.css"><script src="/asset/a.js"></script></head>
+<body><h1>page-b</h1><img src="/asset/a.png" width="1" height="1" alt="">
+<iframe src="/asset/frame.html" width="1" height="1"></iframe></body></html>`), "text/html; charset=utf-8"
+	default:
+		return []byte(`<!doctype html><html><head><title>page-a</title>
+<link rel="stylesheet" href="/asset/a.css"><script src="/asset/a.js"></script></head>
+<body><h1>page-a</h1><img src="/asset/a.png" width="1" height="1" alt="">
+<iframe src="/asset/frame.html" width="1" height="1"></iframe></body></html>`), "text/html; charset=utf-8"
+	}
+}
+
+func (s *Server) persistH3Request(streamID int64, frames []byte) {
+	dir := s.CaptureDir
+	if dir == "" || len(frames) == 0 {
+		return
+	}
+	_ = os.MkdirAll(dir, 0o755)
+	path := filepath.Join(dir, fmt.Sprintf("probe-%d.h3req-stream%d.bin", time.Now().UnixNano(), streamID))
+	if err := os.WriteFile(path, frames, 0o644); err != nil {
+		return
+	}
+	log.Printf("wrote H3 request stream %d bytes → %s", len(frames), path)
 }
 
 func (s *Server) persistH3Control(frames []byte) {

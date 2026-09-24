@@ -40,7 +40,10 @@ Live Chrome control stream (SETTINGS + GREASE + PRIORITY_UPDATE). For QPACK HEAD
 ./bin/coherencelab lab h3 --fixture h3_chrome_crafted
 ```
 
-Firefox contrast (neqo — WebTransport draft SETTINGS, GREASE frame, often **no** PRIORITY_UPDATE on the first `/probe` control flight):
+Firefox contrast (neqo — WebTransport draft SETTINGS, GREASE frame, **no**
+PRIORITY_UPDATE on the live control stream in Windows lab captures — neither
+first `/probe` nor tab-focus with
+`network.http.http3.send_background_tabs_deprioritization=true`):
 
 ```bash
 ./bin/coherencelab lab h3 --fixture h3_firefox
@@ -48,6 +51,11 @@ Firefox contrast (neqo — WebTransport draft SETTINGS, GREASE frame, often **no
 ./bin/coherencelab lab golden --h3 h3_firefox --vs-h3 h3_chrome
 ./bin/coherencelab lab golden --cross   # includes Firefox cross-layer + family contrast
 ```
+
+That `|0` priority field is a **family signal**, not a capture failure:
+Chromium paints `PRIORITY_UPDATE` early; Firefox's live control flight here does
+not. (Gecko *can* emit focus-driven updates in tree — see
+`Http3Stream::CurrentBrowserIdChanged` — but they do not show up on this probe.)
 
 Confirm:
 
