@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: oliver-nyx/coherencelab@v1.9.4
+      - uses: oliver-nyx/coherencelab@v1.9.5
         with:
           profile: chrome-131-win
           min-score: "90"
@@ -33,7 +33,7 @@ jobs:
 | `mutate` | no | — | Mutation when `mode=mutate` |
 | `probe` | no | — | Probe URL when `mode=live` |
 | `insecure` | no | `false` | Skip TLS verify for live probes |
-| `version` | no | `v1.9.4` | Release tag/branch to clone (ignored if `local-source` set) |
+| `version` | no | `v1.9.5` | Release tag/branch to clone (ignored if `local-source` set) |
 | `local-source` | no | — | Path to local checkout (use `.` when dogfooding this repo) |
 | `working-directory` | no | `.` | Directory to run from |
 | `go-version` | no | `1.24` | Go toolchain for the build |
@@ -47,7 +47,7 @@ jobs:
 
 ```yaml
 - id: coherence
-  uses: oliver-nyx/coherencelab@v1.9.4
+  uses: oliver-nyx/coherencelab@v1.9.5
   with:
     profile: chrome-132-win
 
@@ -59,7 +59,7 @@ jobs:
 Fail the job if a known-bad identity somehow scores as coherent:
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.9.4
+- uses: oliver-nyx/coherencelab@v1.9.5
   with:
     profile: chrome-131-win
     mode: mutate
@@ -76,6 +76,6 @@ Fail the job if a known-bad identity somehow scores as coherent:
 
 ## Publishing notes
 
-This repository is the action (`action.yml` at root). Tag releases (`v1.9.4`) so consumers can pin `@v1.9.4` or `@v1`.
+This repository is the action (`action.yml` at root). Tag releases (`v1.9.5`) so consumers can pin `@v1.9.5` or `@v1`.
 
 To list on the GitHub Marketplace: repository Settings → Actions → publish with the branding in `action.yml`.

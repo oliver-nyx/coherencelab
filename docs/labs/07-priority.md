@@ -59,11 +59,11 @@ Live request-flight contrast (Priority **header**, not frame):
 # same Chromium-family Akamai shape
 ```
 
-Compare live Firefox preface (no request HEADERS in bundled fixture yet):
+Compare live Firefox request flight:
 
 ```bash
 ./bin/coherencelab lab h2 --fixture h2_firefox
-# Akamai: 1:65536;2:0;4:131072;5:16384|12517377|0|
+# Akamai: 1:65536;2:0;4:131072;5:16384|12517377|hdr:u=0,i|m,p,a,s
 ```
 
 ## What high-level RE looks for

@@ -96,12 +96,9 @@ func (s *Server) quicAcceptLoop(ctx context.Context, ln *quic.EarlyListener, h3 
 }
 
 func (s *Server) handleH3Conn(ctx context.Context, conn *quic.Conn, h3 *http3.Server) {
-	// Fast path: complete handshake via http3 (better Firefox compatibility),
-	// while also running manual control-stream capture on a forked strategy.
-	// ServeQUICConn and AcceptUniStream cannot share a conn — so we use manual
-	// capture after HandshakeComplete (Chrome/Edge). For peers that abort the
-	// early/manual path, ServeQUICConn is attempted only when handshake never
-	// completes (see select below).
+	// Manual capture after HandshakeComplete (Chrome/Edge — writes probe-*.h3.bin).
+	// Firefox often aborts with APPLICATION_ERROR before handshake; ServeQUICConn
+	// on timeout can complete the page load but does not yield raw control bytes.
 	select {
 	case <-conn.HandshakeComplete():
 		log.Printf("h3 handshake ok from %s alpn=%s", conn.RemoteAddr(), conn.ConnectionState().TLS.NegotiatedProtocol)
@@ -109,12 +106,9 @@ func (s *Server) handleH3Conn(ctx context.Context, conn *quic.Conn, h3 *http3.Se
 	case <-conn.Context().Done():
 		log.Printf("h3 conn closed before handshake from %s: %v", conn.RemoteAddr(), context.Cause(conn.Context()))
 	case <-time.After(3 * time.Second):
-		// Slow handshake: hand off to http3 (may help Firefox).
 		log.Printf("h3 handshake slow from %s — ServeQUICConn", conn.RemoteAddr())
 		if err := h3.ServeQUICConn(conn); err != nil {
 			log.Printf("ServeQUICConn %s: %v", conn.RemoteAddr(), err)
-		} else {
-			log.Printf("ServeQUICConn %s done", conn.RemoteAddr())
 		}
 	}
 }

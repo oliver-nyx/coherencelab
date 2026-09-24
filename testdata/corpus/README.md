@@ -15,7 +15,7 @@ Checked-in wire samples so labs work on a cold clone — **no Wireshark required
 | `h2-chrome-live.bin` | **live-browser** — Chrome H2 **request** flight (HEADERS + `priority: u=0, i`; Akamai `…\|hdr:u=0,i\|m,a,s,p`) |
 | `h2-edge-live.bin` | **live-browser** — Edge H2 request flight (same Chromium Akamai shape) |
 | `h2-chrome-like.bin` | **crafted** — teaching H2 (`h2_continuation`: EPS + CONTINUATION) |
-| `h2-firefox-live.bin` | **live-browser** — Firefox H2 preface+SETTINGS+WINDOW_UPDATE (request flight pending) |
+| `h2-firefox-live.bin` | **live-browser** — Firefox H2 **request** flight (`priority: u=0, i`; Akamai `…\|hdr:u=0,i\|m,p,a,s`) |
 | `h2-firefox-like.bin` | **crafted** — Firefox-like SETTINGS+HEADERS (`h2_firefox_crafted`) |
 | `h3-chrome-live.bin` | **live-browser** — real Chrome H3 control stream (SETTINGS+GREASE+PRIORITY_UPDATE) |
 | `h3-edge-live.bin` | **live-browser** — real Edge H3 control stream |

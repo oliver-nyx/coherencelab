@@ -44,7 +44,7 @@ var Catalog = []Fixture{
 	{Name: "h2_continuation", Kind: "h2", File: "h2-chrome-like.bin",
 		Source: "crafted", Notes: "Teaching fixture: SETTINGS(+NO_RFC7540)+WINDOW_UPDATE+PRIORITY_UPDATE+HEADERS/CONTINUATION m,a,s,p (Lab 05/07)"},
 	{Name: "h2_firefox", Kind: "h2", File: "h2-firefox-live.bin",
-		Source: "live-browser", Notes: "Real Firefox H2 preface+SETTINGS+WINDOW_UPDATE (Windows; enterprise_roots) — request-flight recapture pending cert trust"},
+		Source: "live-browser", Notes: "Real Firefox H2 request flight; Priority HTTP header u=0,i; Akamai …|hdr:u=0,i|m,p,a,s"},
 	{Name: "h2_firefox_crafted", Kind: "h2", File: "h2-firefox-like.bin",
 		Source: "crafted", Notes: "Firefox-like SETTINGS+HEADERS m,p,a,s teaching fixture (Lab 03 contrast)"},
 	{Name: "h3_chrome", Kind: "h3", File: "h3-chrome-live.bin",

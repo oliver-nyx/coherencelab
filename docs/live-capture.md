@@ -5,16 +5,21 @@ Live bins under `testdata/corpus/*-live.bin` are real browser wire bytes.
 
 ## One-time trust (Windows)
 
-Probe PEMs are durable under `--capture-dir` (same cert across restarts):
+Probe PEMs are **machine-wide durable** under `%LOCALAPPDATA%\coherencelab\`
+(override with `COHERENCELAB_CERT_DIR`). Switching `--capture-dir` no longer
+mints a new Root CA — that used to break Firefox after the first capture.
 
 ```powershell
+$env:COHERENCELAB_CERT_DIR = "$env:LOCALAPPDATA\coherencelab"
 coherencelab serve --addr 127.0.0.1:8443 --capture-dir C:\clcap
-# then, once per cert generation:
-certutil -addstore -f Root C:\clcap\probe-cert.pem
+# once per machine (or after deleting the durable PEMs):
+certutil -addstore -f Root "$env:LOCALAPPDATA\coherencelab\probe-cert.pem"
 ```
 
 Firefox also needs `security.enterprise_roots.enabled=true` in the profile
-`user.js` (so it uses the Windows Root store).
+`user.js`, and/or a `distribution/policies.json` with
+`Certificates.ImportEnterpriseRoots` + `Certificates.Install` pointing at the
+durable PEM.
 
 Chrome/Edge QUIC/H3 need the Root trust too — `--ignore-certificate-errors`
 alone is not enough for HTTP/3.
@@ -51,7 +56,7 @@ merged stream parses. Use that file for `quic_initial_firefox`.
 | Fixture | Typical live shape |
 |---------|-------------------|
 | `h2_chrome` / `h2_edge` | request flight: SETTINGS + WINDOW_UPDATE + HEADERS; Akamai `…\|hdr:u=0,i\|m,a,s,p` |
-| `h2_firefox` | preface-only today (SETTINGS + WINDOW_UPDATE); field 3=`0` |
+| `h2_firefox` | request flight; Akamai `…\|hdr:u=0,i\|m,p,a,s` |
 | `h3_chrome` / `h3_edge` | SETTINGS + GREASE + PRIORITY_UPDATE on control stream |
 | `quic_initial_chrome` | decryptable Initial; often `gq0` (no grease_quic_bit) |
 | `quic_initial_edge` | decryptable Initial; TP order differs from Chrome; `gq0` |

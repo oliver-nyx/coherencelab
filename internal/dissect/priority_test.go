@@ -97,7 +97,7 @@ func TestH2ContinuationFixtureHasPriorityUpdate(t *testing.T) {
 	t.Log(ak)
 }
 
-func TestFirefoxFixturePriorityIsZero(t *testing.T) {
+func TestFirefoxLiveRequestFlight(t *testing.T) {
 	fx, raw, err := LoadFixtureBytes("h2_firefox")
 	if err != nil {
 		t.Fatal(err)
@@ -106,11 +106,14 @@ func TestFirefoxFixturePriorityIsZero(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.PriorityFingerprint() != "0" {
-		t.Fatalf("got %s", s.PriorityFingerprint())
+	if s.PriorityFingerprint() != "hdr:u=0,i" {
+		t.Fatalf("got %s want hdr:u=0,i", s.PriorityFingerprint())
+	}
+	if s.HeaderBlock == nil || s.HeaderBlock.PseudoOrder != "m,p,a,s" {
+		t.Fatalf("pseudo=%v", s.HeaderBlock)
 	}
 	if fx.Source == "live-browser" {
-		want := "1:65536;2:0;4:131072;5:16384|12517377|0|"
+		want := "1:65536;2:0;4:131072;5:16384|12517377|hdr:u=0,i|m,p,a,s"
 		if got := s.AkamaiH2Fingerprint(); got != want {
 			t.Fatalf("live firefox H2 akamai changed\n got  %s\n want %s", got, want)
 		}

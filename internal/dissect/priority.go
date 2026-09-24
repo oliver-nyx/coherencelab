@@ -169,7 +169,7 @@ func priorityFindings(s *H2Session) []string {
 	case hdrPri != "":
 		out = append(out, fmt.Sprintf("RFC 9218 Priority HTTP header %q (Chrome 124+ / Safari / Firefox) — not a PRIORITY_UPDATE frame", hdrPri))
 		if headersPriBit {
-			out = append(out, "HEADERS still carries deprecated RFC 7540 Priority flag alongside Priority header — transitional Chrome wire shape")
+			out = append(out, "HEADERS still carries deprecated RFC 7540 Priority flag alongside Priority header — transitional browser wire shape")
 		}
 	case no7540 && !hasPU:
 		out = append(out, "NO_RFC7540_PRIORITIES=1 but no PRIORITY_UPDATE in capture — incomplete Chrome-like session or capture gap")
