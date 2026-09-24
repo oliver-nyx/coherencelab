@@ -29,8 +29,9 @@ type Result struct {
 	CriticalFails   int             `json:"critical_fails"`
 	Findings        []rules.Finding `json:"findings"`
 	FailedFindings  []rules.Finding `json:"failed_findings"`
-	CategoryScores  map[string]int  `json:"category_scores"`
-	CategoryMax     map[string]int  `json:"category_max"`
+	CategoryScores map[string]int `json:"category_scores"`
+	CategoryMax    map[string]int `json:"category_max"`
+	Notes          []string       `json:"notes,omitempty"`
 }
 
 // Compute scores findings into a result.
@@ -40,8 +41,12 @@ func Compute(findings []rules.Finding) Result {
 	catScores := make(map[string]int)
 	catMax := make(map[string]int)
 	var failedFindings []rules.Finding
+	var notes []string
 
 	for _, f := range findings {
+		if f.ID == "tls.preset_approximate" && !f.Skipped && f.Actual != "" {
+			notes = append(notes, f.Actual)
+		}
 		if f.Skipped || (f.Weight == 0 && f.Severity == rules.SeverityInfo) {
 			skipped++
 			continue
@@ -86,6 +91,7 @@ func Compute(findings []rules.Finding) Result {
 		FailedFindings: failedFindings,
 		CategoryScores: catScores,
 		CategoryMax:    catMax,
+		Notes:          notes,
 	}
 }
 

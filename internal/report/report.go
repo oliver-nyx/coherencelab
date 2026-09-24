@@ -135,6 +135,15 @@ func writeText(w io.Writer, rep *scan.Report) error {
 	_ = tw.Flush()
 	fmt.Fprintln(w)
 
+	if len(rep.Result.Notes) > 0 {
+		yellow.Fprintf(w, "  Preset notes\n")
+		fmt.Fprintf(w, "  ─────────────────\n")
+		for _, n := range rep.Result.Notes {
+			fmt.Fprintf(w, "  • %s\n", n)
+		}
+		fmt.Fprintln(w)
+	}
+
 	if rep.Result.Percentage >= 95 && rep.Result.CriticalFails == 0 {
 		green.Fprintf(w, "  ✓ Identity signals are coherent for profile %s\n\n", rep.ProfileID)
 	} else {

@@ -21,6 +21,8 @@ Each YAML file defines expected identity signals for one browser + platform comb
 
 - **Chrome iOS (CriOS)** — UA brands as Chrome, but TLS/HTTP/2 must match Safari/WebKit. Spoofing desktop Chrome TLS with a CriOS UA is a critical fail.
 - **Opera** — Chromium TLS with Opera Client Hints brands (`"Opera";v=…`).
+- **Edge 131** — same Chromium TLS parrot as Chrome 131. uTLS `HelloEdge_Auto` is Edge 85.
+- **Chrome 132, Firefox 133, Safari 18** — no dedicated uTLS parrot. Scans keep grade A and print a preset note (`HelloChrome_131`, `HelloFirefox_120`, Safari 16.0 / iOS 14).
 
 ## Validate all profiles
 

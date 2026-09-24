@@ -180,7 +180,7 @@ func guessUTLS(browser string) string {
 	case "safari":
 		return "safari_18"
 	case "edge":
-		return "edge_106"
+		return "chrome_131"
 	default:
 		return "chrome_131"
 	}

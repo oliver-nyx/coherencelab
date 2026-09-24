@@ -7,6 +7,7 @@ import (
 
 	"github.com/oliver-nyx/coherencelab/internal/profile"
 	"github.com/oliver-nyx/coherencelab/internal/signal"
+	"github.com/oliver-nyx/coherencelab/internal/tlsfp"
 )
 
 // Severity classifies rule outcomes.
@@ -75,6 +76,7 @@ func DefaultRules() []Rule {
 		acceptLanguageRule(),
 		tlsALPNRule(),
 		tlsVersionRule(),
+		tlsPresetApproximationRule(),
 		http2SettingsRule(),
 		jsNavigatorPlatformRule(),
 		jsNavigatorVendorRule(),
@@ -332,6 +334,22 @@ func tlsVersionRule() Rule {
 			passed := tlsVersionInRange(s.TLS.Version, p.TLS.MinVersion, p.TLS.MaxVersion)
 			return finding("tls.version", CategoryTLS, SeverityMedium, 6,
 				"TLS version within profile range", rangeLabel, s.TLS.Version, passed)
+		},
+	}
+}
+
+func tlsPresetApproximationRule() Rule {
+	return Rule{
+		ID: "tls.preset_approximate", Category: CategoryTLS, Severity: SeverityInfo, Weight: 0,
+		Title: "uTLS preset matches the claimed browser generation",
+		Check: func(p *profile.Profile, _ *signal.Snapshot) Finding {
+			note := tlsfp.PresetNote(p.TLS.UTLSClientID)
+			if note == "" {
+				return skipped("tls.preset_approximate", CategoryTLS, "uTLS preset matches the claimed browser generation")
+			}
+			f := finding("tls.preset_approximate", CategoryTLS, SeverityInfo, 0,
+				"uTLS preset approximates the claimed browser", p.TLS.UTLSClientID, note, true)
+			return f
 		},
 	}
 }

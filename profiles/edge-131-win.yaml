@@ -5,8 +5,8 @@ version: "131"
 platform: windows
 engine: blink
 description: >
-  Edge 131 on Windows — Chromium-based but with distinct Sec-Ch-Ua brands
-  and Edge-specific Client Hint values.
+  Edge 131 on Windows. uTLS has no Edge 131 hello (HelloEdge_Auto is Edge 85),
+  so TLS uses the Chrome 131 parrot. Client Hints stay Edge-branded.
 tags:
   - edge
   - windows
@@ -59,7 +59,7 @@ tls:
   alpn:
     - h2
     - http/1.1
-  utls_client_id: edge_106
+  utls_client_id: chrome_131
 
 http2:
   header_table_size: 65536

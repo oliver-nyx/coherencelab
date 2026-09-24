@@ -30,9 +30,29 @@ func ClientHelloID(clientID string) utls.ClientHelloID {
 	case "safari_ios_18", "safari-ios-18", "ios_14", "ios-14":
 		return utls.HelloIOS_Auto
 	case "edge_106", "edge-106":
+		// HelloEdge_Auto is Edge 85. HelloEdge_106 exists but uTLS marks it incompatible.
 		return utls.HelloEdge_Auto
 	default:
 		return utls.HelloChrome_Auto
+	}
+}
+
+// PresetNote reports when a profile id does not have a dedicated uTLS parrot
+// in v1.8.1. Empty means the id maps to a hello of the same generation.
+func PresetNote(id string) string {
+	switch strings.ToLower(id) {
+	case "chrome_132", "chrome-132":
+		return "uTLS has no Chrome 132 parrot; this id emits HelloChrome_131"
+	case "firefox_133", "firefox-133":
+		return "uTLS HelloFirefox_Auto is HelloFirefox_120, not Firefox 133"
+	case "safari_18", "safari-18":
+		return "uTLS HelloSafari_Auto is Safari 16.0, not Safari 18"
+	case "safari_ios_18", "safari-ios-18":
+		return "uTLS HelloIOS_Auto is iOS 14, not iOS 18"
+	case "edge_106", "edge-106":
+		return "uTLS HelloEdge_Auto is Edge 85 (HelloEdge_106 is marked incompatible). Current Edge should use chrome_131"
+	default:
+		return ""
 	}
 }
 

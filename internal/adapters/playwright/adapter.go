@@ -192,7 +192,7 @@ func guessUTLS(profileID string) string {
 		}
 		return "safari_18"
 	case strings.HasPrefix(profileID, "edge"):
-		return "edge_106"
+		return "chrome_131"
 	default:
 		return "chrome_131"
 	}
