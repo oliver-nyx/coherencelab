@@ -40,6 +40,13 @@ Live Chrome control stream (SETTINGS + GREASE + PRIORITY_UPDATE). For QPACK HEAD
 ./bin/coherencelab lab h3 --fixture h3_chrome_crafted
 ```
 
+Firefox contrast (neqo — WebTransport draft SETTINGS, GREASE frame, often **no** PRIORITY_UPDATE on the first `/probe` control flight):
+
+```bash
+./bin/coherencelab lab h3 --fixture h3_firefox
+# golden ≈ 1,7,2b603742,ffd277,33,8|gf1|0
+```
+
 Confirm:
 
 1. SETTINGS use QPACK ids (`0x1`, `0x6`, `0x7`) — not H2 `ENABLE_PUSH` / window

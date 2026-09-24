@@ -175,6 +175,22 @@ func TestGoldenFingerprintsLocked(t *testing.T) {
 		t.Fatalf("h3_chrome_crafted golden changed\n got  %s\n want %s", got, wantH3c)
 	}
 
+	_, h3ffRaw, err := LoadFixtureBytes("h3_firefox")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h3ff, err := ParseH3(h3ffRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Firefox: QPACK 1+7, WebTransport draft ids (0x2b603742 / 0xffd277),
+	// H3_DATAGRAM 0x33, ENABLE_CONNECT 0x8; GREASE frame; no PRIORITY_UPDATE on
+	// the first control-stream capture from a simple /probe navigation.
+	wantH3ff := "1,7,2b603742,ffd277,33,8|gf1|0"
+	if got := H3Fingerprint(h3ff); got != wantH3ff {
+		t.Fatalf("h3_firefox (live) golden changed\n got  %s\n want %s", got, wantH3ff)
+	}
+
 	_, h2raw, err := LoadFixtureBytes("h2_chrome")
 	if err != nil {
 		t.Fatal(err)

@@ -1,8 +1,8 @@
-# Why Your HTTP Client Gets Blocked: Identity Coherence
+﻿# Why Your HTTP Client Gets Blocked: Identity Coherence
 
-*A technical write-up for [antibot.blog](https://antibot.blog) / [debug.cat](https://debug.cat) — suitable for republication with attribution.*
+*A technical write-up for [antibot.blog](https://antibot.blog) / [debug.cat](https://debug.cat) â€” suitable for republication with attribution.*
 
-**Author:** oliver-nyx · **Tool:** [CoherenceLab](https://github.com/oliver-nyx/coherencelab) · **Date:** 2026-09
+**Author:** oliver-nyx Â· **Tool:** [CoherenceLab](https://github.com/oliver-nyx/coherencelab) Â· **Date:** 2026-09
 
 ---
 
@@ -10,9 +10,9 @@
 
 When a protected site returns a challenge page or silent drop, teams often blame a single layer:
 
-- “Our JA3 is wrong — swap the TLS client.”
-- “Headers look outdated — refresh the User-Agent.”
-- “HTTP/2 SETTINGS don’t match Chrome — tune the frame.”
+- â€œOur JA3 is wrong â€” swap the TLS client.â€
+- â€œHeaders look outdated â€” refresh the User-Agent.â€
+- â€œHTTP/2 SETTINGS donâ€™t match Chrome â€” tune the frame.â€
 
 Those fixes sometimes help. More often they **move the contradiction**. You upgrade TLS to Chrome 131 while the User-Agent still says Firefox. You fix Client Hints for Windows while the UA string still contains `X11; Linux`. Anti-bot systems do not score layers in isolation. They ask whether every layer tells the **same story**.
 
@@ -32,10 +32,10 @@ A modern browser session exposes at least four correlated surfaces:
 None of these is sufficient alone. What gets clients blocked is **cross-layer contradiction**:
 
 ```
-TLS:      Chrome 131          ✓
-HTTP/2:   Chromium SETTINGS   ✓
-UA:       Firefox/133         ✗  ← critical
-Hints:    "Google Chrome"     ✗  ← critical (hints say Chrome, UA says Firefox)
+TLS:      Chrome 131          âœ“
+HTTP/2:   Chromium SETTINGS   âœ“
+UA:       Firefox/133         âœ—  â† critical
+Hints:    "Google Chrome"     âœ—  â† critical (hints say Chrome, UA says Firefox)
 ```
 
 A detector does not need perfect fingerprints. It needs evidence that you are not a consistent browser.
@@ -73,7 +73,7 @@ Chrome on iPhone is **not** Chromium networking. Apple requires WebKit for in-ap
 
 Spoofing a CriOS User-Agent while dialing with a Chrome TLS parrot is a **critical coherence failure**. The correct pair is CriOS UA + Safari/iOS TLS + WebKit HTTP/2 SETTINGS.
 
-CoherenceLab encodes this as an explicit rule: if the UA contains `CriOS/`, the TLS preset must be iOS/Safari — not `chrome_*`.
+CoherenceLab encodes this as an explicit rule: if the UA contains `CriOS/`, the TLS preset must be iOS/Safari â€” not `chrome_*`.
 
 ### 4. Opera brands on Chromium TLS
 
@@ -96,7 +96,7 @@ Browser families diverge on SETTINGS even when TLS looks similar:
 | Firefox | 100 | 131072 | 65536 |
 | WebKit / Safari / CriOS | 100 | 2097152 | 4096 |
 
-CoherenceLab v1.3+ can capture the **wire** SETTINGS frame during live scans, not just echo the profile YAML. That closes the gap where a client claimed Chrome SETTINGS in config while Go’s default HTTP/2 transport sent something else.
+CoherenceLab v1.3+ can capture the **wire** SETTINGS frame during live scans, not just echo the profile YAML. That closes the gap where a client claimed Chrome SETTINGS in config while Goâ€™s default HTTP/2 transport sent something else.
 
 ## Scoring coherence (how CoherenceLab works)
 
@@ -120,7 +120,7 @@ Exit code `1` means either a critical failure or a score below the threshold.
 When debugging a block, ask in order:
 
 1. **Do UA and Client Hints agree on browser and platform?**
-2. **Does TLS family match that browser?** (CriOS → WebKit; desktop Chrome → Chromium; Firefox → Firefox.)
+2. **Does TLS family match that browser?** (CriOS â†’ WebKit; desktop Chrome â†’ Chromium; Firefox â†’ Firefox.)
 3. **Do HTTP/2 SETTINGS match the same family?**
 4. **Are automation leaks present?** (`X-Selenium`, odd header order, missing `Sec-Fetch-*` on navigate.)
 
@@ -133,10 +133,10 @@ git clone https://github.com/oliver-nyx/coherencelab
 cd coherencelab
 go build -o bin/coherencelab ./cmd/coherencelab
 
-# Coherent profile → Grade A
+# Coherent profile â†’ Grade A
 ./bin/coherencelab scan --profile chrome-131-win --profiles profiles
 
-# Intentional mismatch → Grade F
+# Intentional mismatch â†’ Grade F
 ./bin/coherencelab scan --profile chrome-131-win --mode mutate --mutate wrong-platform --profiles profiles
 
 # CriOS / WebKit coherence
@@ -146,7 +146,7 @@ go build -o bin/coherencelab ./cmd/coherencelab
 GitHub Actions (marketplace-style composite action ships in the same repo):
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.9.5
+- uses: oliver-nyx/coherencelab@v1.9.6
   with:
     profile: chrome-131-win
     min-score: "90"
@@ -154,7 +154,7 @@ GitHub Actions (marketplace-style composite action ships in the same repo):
 
 ## Closing
 
-Bot detection is often framed as an arms race of fingerprints. In practice, a large share of failures are simpler: **the layers disagree**. Identity coherence is the discipline of making TLS, HTTP/2, headers, and Client Hints describe one browser on one platform — including awkward but real cases like Chrome on iOS.
+Bot detection is often framed as an arms race of fingerprints. In practice, a large share of failures are simpler: **the layers disagree**. Identity coherence is the discipline of making TLS, HTTP/2, headers, and Client Hints describe one browser on one platform â€” including awkward but real cases like Chrome on iOS.
 
 CoherenceLab exists to make that check mechanical, testable, and CI-friendly.
 

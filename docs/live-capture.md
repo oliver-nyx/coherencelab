@@ -21,6 +21,17 @@ Firefox also needs `security.enterprise_roots.enabled=true` in the profile
 `Certificates.ImportEnterpriseRoots` + `Certificates.Install` pointing at the
 durable PEM.
 
+**Firefox HTTP/3 with a local/enterprise CA** also requires:
+
+```js
+user_pref("network.http.http3.disable_when_third_party_roots_found", false);
+```
+
+Without that pref, neqo completes TLS (`Authenticated error=0x0`) then closes
+with `NS_ERROR_NET_INADEQUATE_SECURITY` (`0x804b0014`) because
+`hasThirdPartyRoots=1` — the probe sees `APPLICATION_ERROR (remote)` before
+any H3 control frames. See Mozilla bugs 1925014 / 1929368.
+
 Chrome/Edge QUIC/H3 need the Root trust too — `--ignore-certificate-errors`
 alone is not enough for HTTP/3.
 
@@ -38,8 +49,9 @@ chrome --ignore-certificate-errors --enable-quic `
   --host-resolver-rules="MAP example.com 127.0.0.1" `
   https://example.com:8443/probe
 
-# Firefox H2 (profile with enterprise_roots + localDomains)
-firefox -profile C:\clcap\ffprof https://example.com:8443/probe
+# Firefox H2 + H3 (profile prefs above + localDomains)
+# user.js must include disable_when_third_party_roots_found=false for H3
+firefox -no-remote -profile C:\clcap\ffprof https://example.com:8443/probe
 ```
 
 Copy the newest `probe-*.h2.bin` / `probe-*.h3.bin` /
@@ -51,6 +63,9 @@ Firefox often fragments the ClientHello CRYPTO stream across multiple
 Initials — the probe writes `*.quic-flight.bin` (`CLQI` magic) once the
 merged stream parses. Use that file for `quic_initial_firefox`.
 
+The H3 listener uses `quic.Transport.Listen` (handshake-complete Accept) with
+an async Initial tee so multi-datagram Firefox flights are not starved.
+
 ## Honesty notes
 
 | Fixture | Typical live shape |
@@ -58,6 +73,7 @@ merged stream parses. Use that file for `quic_initial_firefox`.
 | `h2_chrome` / `h2_edge` | request flight: SETTINGS + WINDOW_UPDATE + HEADERS; Akamai `…\|hdr:u=0,i\|m,a,s,p` |
 | `h2_firefox` | request flight; Akamai `…\|hdr:u=0,i\|m,p,a,s` |
 | `h3_chrome` / `h3_edge` | SETTINGS + GREASE + PRIORITY_UPDATE on control stream |
+| `h3_firefox` | SETTINGS (`1,7` + WT draft `0x2b603742`/`0xffd277` + `0x33`/`0x8`) + GREASE frame; often **no** PRIORITY_UPDATE on first `/probe` control flight |
 | `quic_initial_chrome` | decryptable Initial; often `gq0` (no grease_quic_bit) |
 | `quic_initial_edge` | decryptable Initial; TP order differs from Chrome; `gq0` |
 | `quic_initial_firefox` | `CLQI` flight (CRYPTO split across Initials); no Google `0x3128`; `gq0` |

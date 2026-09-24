@@ -24,6 +24,7 @@ func main() {
 		"h2-firefox-live.bin":             true,
 		"h3-chrome-live.bin":              true,
 		"h3-edge-live.bin":                true,
+		"h3-firefox-live.bin":             true,
 		"quic-initial-chrome-live.bin":    true,
 		"quic-initial-edge-live.bin":      true,
 		"quic-initial-firefox-live.bin":   true,

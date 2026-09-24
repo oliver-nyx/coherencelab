@@ -91,6 +91,35 @@ func TestH3EdgeLiveFixture(t *testing.T) {
 	}
 }
 
+func TestH3FirefoxLive(t *testing.T) {
+	fx, raw, err := LoadFixtureBytes("h3_firefox")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fx.Source != "live-browser" {
+		t.Fatalf("source=%s", fx.Source)
+	}
+	s, err := ParseH3(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if countH3GREASEFrames(s) < 1 {
+		t.Fatal("expected GREASE frame in live Firefox H3")
+	}
+	if len(s.PriorityUpdates) != 0 {
+		t.Fatalf("firefox first control flight usually has no PRIORITY_UPDATE, got %d", len(s.PriorityUpdates))
+	}
+	fp := H3Fingerprint(s)
+	want := "1,7,2b603742,ffd277,33,8|gf1|0"
+	if fp != want {
+		t.Fatalf("h3_firefox golden changed\n got  %s\n want %s", fp, want)
+	}
+	// Distinct from Chromium: no MAX_FIELD_SECTION_SIZE (0x6), has WT draft ids.
+	if strings.Contains(fp, ",6,") || strings.HasPrefix(fp, "1,6") {
+		t.Fatalf("firefox H3 should not advertise SETTINGS 0x6 like Chromium: %s", fp)
+	}
+}
+
 func TestH3FixtureCatalog(t *testing.T) {
 	fx, raw, err := LoadFixtureBytes("h3_chrome")
 	if err != nil {

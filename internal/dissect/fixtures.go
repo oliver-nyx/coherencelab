@@ -51,6 +51,8 @@ var Catalog = []Fixture{
 		Source: "live-browser", Notes: "Real Chrome H3 control stream via serve HTTP/3 (Windows); SETTINGS+GREASE+PRIORITY_UPDATE"},
 	{Name: "h3_edge", Kind: "h3", File: "h3-edge-live.bin",
 		Source: "live-browser", Notes: "Real Edge H3 control stream via serve HTTP/3 (Windows); SETTINGS+GREASE+PRIORITY_UPDATE"},
+	{Name: "h3_firefox", Kind: "h3", File: "h3-firefox-live.bin",
+		Source: "live-browser", Notes: "Real Firefox H3 control stream via serve HTTP/3 (Windows); SETTINGS(+Mozilla ids)+GREASE frame; no PRIORITY_UPDATE on first control flight — needs disable_when_third_party_roots_found=false for local CA"},
 	{Name: "h3_chrome_crafted", Kind: "h3", File: "h3-chrome-like.bin",
 		Source: "crafted", Notes: "Teaching H3 SETTINGS(+GREASE)+GREASE frame+PRIORITY_UPDATE+QPACK HEADERS"},
 	{Name: "h3_minimal", Kind: "h3", File: "h3-minimal.bin",

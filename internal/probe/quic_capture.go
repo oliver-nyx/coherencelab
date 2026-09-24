@@ -39,7 +39,12 @@ func (s *Server) startQUICCapture(cert tls.Certificate) error {
 		_ = pc.Close()
 		return fmt.Errorf("udp listen: expected *net.UDPConn")
 	}
-	tee := &initialTeeConn{UDPConn: udp, onInitial: s.persistQUICInitial}
+	var packetConn net.PacketConn = udp
+	if os.Getenv("COHERENCELAB_QUIC_NO_TEE") == "" {
+		packetConn = &initialTeeConn{UDPConn: udp, onInitial: s.persistQUICInitial}
+	} else {
+		log.Printf("QUIC Initial tee disabled (COHERENCELAB_QUIC_NO_TEE)")
+	}
 
 	tlsConf := http3.ConfigureTLSConfig(&tls.Config{
 		Certificates: []tls.Certificate{cert},
@@ -61,8 +66,10 @@ func (s *Server) startQUICCapture(cert tls.Certificate) error {
 		},
 	}
 
-	tr := &quic.Transport{Conn: tee}
-	ln, err := tr.ListenEarly(tlsConf, h3.QUICConfig)
+	tr := &quic.Transport{Conn: packetConn}
+	// Listen (not Early): Accept returns only after TLS handshake completes.
+	// Firefox multi-Initial was aborting on the Early path before CRYPTO finished.
+	ln, err := tr.Listen(tlsConf, h3.QUICConfig)
 	if err != nil {
 		_ = udp.Close()
 		return fmt.Errorf("quic listen: %w", err)
@@ -76,41 +83,31 @@ func (s *Server) startQUICCapture(cert tls.Certificate) error {
 		_ = tr.Close()
 		_ = udp.Close()
 	}
-	log.Printf("HTTP/3 + Initial tee on udp://%s (Alt-Svc h3)", udpAddr)
+	log.Printf("HTTP/3 + Initial tee on udp://%s (Alt-Svc h3, Listen)", udpAddr)
 	go s.quicAcceptLoop(ctx, ln, h3)
 	return nil
 }
 
-func (s *Server) quicAcceptLoop(ctx context.Context, ln *quic.EarlyListener, h3 *http3.Server) {
+func (s *Server) quicAcceptLoop(ctx context.Context, ln *quic.Listener, h3 *http3.Server) {
 	for {
 		conn, err := ln.Accept(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
 			}
+			log.Printf("quic Accept: %v", err)
 			continue
 		}
-		log.Printf("quic accepted from %s", conn.RemoteAddr())
+		log.Printf("quic accepted from %s alpn=%s", conn.RemoteAddr(), conn.ConnectionState().TLS.NegotiatedProtocol)
 		go s.handleH3Conn(ctx, conn, h3)
 	}
 }
 
-func (s *Server) handleH3Conn(ctx context.Context, conn *quic.Conn, h3 *http3.Server) {
-	// Manual capture after HandshakeComplete (Chrome/Edge — writes probe-*.h3.bin).
-	// Firefox often aborts with APPLICATION_ERROR before handshake; ServeQUICConn
-	// on timeout can complete the page load but does not yield raw control bytes.
-	select {
-	case <-conn.HandshakeComplete():
-		log.Printf("h3 handshake ok from %s alpn=%s", conn.RemoteAddr(), conn.ConnectionState().TLS.NegotiatedProtocol)
-		s.handleH3ConnManual(ctx, conn)
-	case <-conn.Context().Done():
-		log.Printf("h3 conn closed before handshake from %s: %v", conn.RemoteAddr(), context.Cause(conn.Context()))
-	case <-time.After(3 * time.Second):
-		log.Printf("h3 handshake slow from %s — ServeQUICConn", conn.RemoteAddr())
-		if err := h3.ServeQUICConn(conn); err != nil {
-			log.Printf("ServeQUICConn %s: %v", conn.RemoteAddr(), err)
-		}
-	}
+func (s *Server) handleH3Conn(ctx context.Context, conn *quic.Conn, _ *http3.Server) {
+	// Listen already completed the TLS handshake. Capture client control
+	// bytes with the manual H3 path (same as Chrome/Edge).
+	log.Printf("h3 handshake ok from %s alpn=%s", conn.RemoteAddr(), conn.ConnectionState().TLS.NegotiatedProtocol)
+	s.handleH3ConnManual(ctx, conn)
 }
 
 func (s *Server) handleH3ConnManual(ctx context.Context, conn *quic.Conn) {
@@ -310,7 +307,10 @@ func (c *initialTeeConn) maybeTee(p []byte, n int, addr net.Addr) {
 	}
 	c.seen[key] = struct{}{}
 	c.mu.Unlock()
-	c.onInitial(append([]byte(nil), p[:n]...))
+	// Copy + async: never block the UDP read path (Firefox sends multiple
+	// Initials; sync decrypt/disk previously starved the handshake).
+	pkt := append([]byte(nil), p[:n]...)
+	go c.onInitial(pkt)
 }
 
 func (c *initialTeeConn) SyscallConn() (syscall.RawConn, error) {

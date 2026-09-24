@@ -14,7 +14,7 @@ impersonators:
 | Layer | Golden string | Live Chrome | Live Edge | Live Firefox | Teaching |
 |-------|---------------|-------------|-----------|--------------|----------|
 | QUIC TP | `ids\|gN\|gq0/1` | `3128,8,5,4,3,6,9,7,1,20,11,f\|g1\|gq0` | `3,20,4,11,5,3128,1,7,8,6,f,9\|g1\|gq0` | `1,4,5,6,7,8,9,b,e,f,11,1d,20\|g1\|gq0` | `…\|g1\|gq1` |
-| HTTP/3 | `settings\|gfN\|priority` | `1,6,7,33,g\|gf1\|request_stream:0:u=0,i` | (bundled `h3_edge`) | — | `1,6,7,g\|gf1\|…` |
+| HTTP/3 | `settings\|gfN\|priority` | `1,6,7,33,g\|gf1\|request_stream:0:u=0,i` | (bundled `h3_edge`) | `1,7,2b603742,ffd277,33,8\|gf1\|0` | `1,6,7,g\|gf1\|…` |
 | HTTP/2 | Akamai | `…\|hdr:u=0,i\|m,a,s,p` | same | `…\|hdr:u=0,i\|m,p,a,s` | `…\|u=0,i\|m,a,s,p` (frame) |
 
 GREASE ids are collapsed (`g` / `gN`) so the golden stays stable across
@@ -37,6 +37,7 @@ Targeted diffs:
 ./bin/coherencelab lab golden --quic quic_initial_firefox --vs quic_initial_chrome
 ./bin/coherencelab lab golden --quic quic_initial_crafted --vs quic_tp_minimal
 ./bin/coherencelab lab golden --h3 h3_chrome --vs-h3 h3_minimal
+./bin/coherencelab lab golden --h3 h3_firefox --vs-h3 h3_chrome
 ./bin/coherencelab lab golden --cross
 ```
 

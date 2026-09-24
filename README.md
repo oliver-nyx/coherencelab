@@ -1,4 +1,4 @@
-# CoherenceLab
+﻿# CoherenceLab
 
 [![CI](https://github.com/oliver-nyx/coherencelab/actions/workflows/ci.yml/badge.svg)](https://github.com/oliver-nyx/coherencelab/actions/workflows/ci.yml)
 [![Go Report](https://img.shields.io/badge/go-1.24+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
@@ -114,7 +114,7 @@ echo $?  # 0 = pass, 1 = critical failure or score below threshold
 Or use the reusable GitHub Action:
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.9.5
+- uses: oliver-nyx/coherencelab@v1.9.6
   with:
     profile: chrome-131-win
     min-score: "90"
@@ -412,8 +412,8 @@ coherencelab/
 - [x] Machine-wide durable probe Root CA (`%LOCALAPPDATA%\coherencelab`)
 - [x] Live Chrome H3 control-stream fixture via serve HTTP/3
 - [x] Live Edge H3 control-stream fixture
+- [x] Live Firefox H3 control-stream fixture (needs `disable_when_third_party_roots_found=false`)
 - [x] CI guard: `*-live.bin` must stay protected in `gen_corpus.go`
-- [ ] Live Firefox H3 control stream (QUIC accepts then `APPLICATION_ERROR` before H3 frames)
 - [ ] Live Safari ClientHello (requires macOS/iOS ? deferred; skip on this host)
 
 ## Docs

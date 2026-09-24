@@ -1,14 +1,14 @@
-# Getting Started with CoherenceLab
+﻿# Getting Started with CoherenceLab
 
 ## The problem
 
 When a protected website blocks your HTTP client, the cause is often not "bad TLS" or "bad headers" alone. It is a **contradiction between layers**:
 
 ```
-Layer 1 (TLS):     Chrome 131 JA3 fingerprint     ✓
-Layer 2 (HTTP/2):  Chrome SETTINGS frame        ✓
-Layer 3 (Headers): Firefox User-Agent           ✗  ← mismatch
-Layer 4 (Hints):   Sec-Ch-Ua-Platform: "Linux"  ✗  ← mismatch (profile says Windows)
+Layer 1 (TLS):     Chrome 131 JA3 fingerprint     âœ“
+Layer 2 (HTTP/2):  Chrome SETTINGS frame        âœ“
+Layer 3 (Headers): Firefox User-Agent           âœ—  â† mismatch
+Layer 4 (Hints):   Sec-Ch-Ua-Platform: "Linux"  âœ—  â† mismatch (profile says Windows)
 ```
 
 Anti-bot systems correlate signals across layers. CoherenceLab catches these mismatches before you hit production.
@@ -33,10 +33,10 @@ Expected output for a coherent profile:
 ```
 Score:    150+ / max  Grade: A
 Checks:   N passed, 0 failed
-✓ Identity signals are coherent for profile chrome-131-win
+âœ“ Identity signals are coherent for profile chrome-131-win
 ```
 
-Some checks may be **skipped** in local mode (e.g. live TLS ALPN) — that is normal. Skipped checks do not count toward the score.
+Some checks may be **skipped** in local mode (e.g. live TLS ALPN) â€” that is normal. Skipped checks do not count toward the score.
 
 ## Understanding failures
 
@@ -50,7 +50,7 @@ When a check fails, the report shows:
 
 | Severity | Meaning |
 |----------|---------|
-| CRITICAL | Automatic grade F — likely immediate block |
+| CRITICAL | Automatic grade F â€” likely immediate block |
 | HIGH | Strong detection signal |
 | MEDIUM | Contributes to risk score |
 | LOW | Minor inconsistency |
@@ -74,10 +74,10 @@ You can also probe public fingerprint endpoints (use responsibly):
 
 ## CI pipeline
 
-### Option A — marketplace-style composite action
+### Option A â€” marketplace-style composite action
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.9.5
+- uses: oliver-nyx/coherencelab@v1.9.6
   with:
     profile: chrome-131-win
     min-score: "90"
@@ -85,7 +85,7 @@ You can also probe public fingerprint endpoints (use responsibly):
 
 See [GitHub Action docs](github-action.md).
 
-### Option B — build from source
+### Option B â€” build from source
 
 ```yaml
 - name: Coherence check

@@ -1,4 +1,4 @@
-# GitHub Action
+﻿# GitHub Action
 
 Reusable composite action that installs CoherenceLab and runs a coherence scan in CI.
 
@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: oliver-nyx/coherencelab@v1.9.5
+      - uses: oliver-nyx/coherencelab@v1.9.6
         with:
           profile: chrome-131-win
           min-score: "90"
@@ -27,14 +27,14 @@ jobs:
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `profile` | yes | — | Profile ID (`chrome-131-win`, `chrome-131-ios`, …) |
+| `profile` | yes | â€” | Profile ID (`chrome-131-win`, `chrome-131-ios`, â€¦) |
 | `min-score` | no | `90` | Minimum percentage to pass |
 | `mode` | no | `local` | `local`, `mutate`, or `live` |
-| `mutate` | no | — | Mutation when `mode=mutate` |
-| `probe` | no | — | Probe URL when `mode=live` |
+| `mutate` | no | â€” | Mutation when `mode=mutate` |
+| `probe` | no | â€” | Probe URL when `mode=live` |
 | `insecure` | no | `false` | Skip TLS verify for live probes |
-| `version` | no | `v1.9.5` | Release tag/branch to clone (ignored if `local-source` set) |
-| `local-source` | no | — | Path to local checkout (use `.` when dogfooding this repo) |
+| `version` | no | `v1.9.6` | Release tag/branch to clone (ignored if `local-source` set) |
+| `local-source` | no | â€” | Path to local checkout (use `.` when dogfooding this repo) |
 | `working-directory` | no | `.` | Directory to run from |
 | `go-version` | no | `1.24` | Go toolchain for the build |
 
@@ -42,12 +42,12 @@ jobs:
 
 | Output | Description |
 |--------|-------------|
-| `grade` | Letter grade `A`–`F` |
+| `grade` | Letter grade `A`â€“`F` |
 | `score` | Score percentage |
 
 ```yaml
 - id: coherence
-  uses: oliver-nyx/coherencelab@v1.9.5
+  uses: oliver-nyx/coherencelab@v1.9.6
   with:
     profile: chrome-132-win
 
@@ -59,7 +59,7 @@ jobs:
 Fail the job if a known-bad identity somehow scores as coherent:
 
 ```yaml
-- uses: oliver-nyx/coherencelab@v1.9.5
+- uses: oliver-nyx/coherencelab@v1.9.6
   with:
     profile: chrome-131-win
     mode: mutate
@@ -76,6 +76,6 @@ Fail the job if a known-bad identity somehow scores as coherent:
 
 ## Publishing notes
 
-This repository is the action (`action.yml` at root). Tag releases (`v1.9.5`) so consumers can pin `@v1.9.5` or `@v1`.
+This repository is the action (`action.yml` at root). Tag releases (`v1.9.6`) so consumers can pin `@v1.9.6` or `@v1`.
 
-To list on the GitHub Marketplace: repository Settings → Actions → publish with the branding in `action.yml`.
+To list on the GitHub Marketplace: repository Settings â†’ Actions â†’ publish with the branding in `action.yml`.
