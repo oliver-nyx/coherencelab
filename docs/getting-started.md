@@ -1,4 +1,4 @@
-﻿# Getting Started with CoherenceLab
+# Getting Started with CoherenceLab
 
 ## The problem
 

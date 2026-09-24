@@ -1,4 +1,4 @@
-﻿name: CoherenceLab Scan
+name: CoherenceLab Scan
 description: Validate browser identity coherence (TLS, HTTP/2, headers, Client Hints) in CI
 author: oliver-nyx
 branding:

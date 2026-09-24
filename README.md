@@ -1,21 +1,21 @@
-﻿# CoherenceLab
+# CoherenceLab
 
 [![CI](https://github.com/oliver-nyx/coherencelab/actions/workflows/ci.yml/badge.svg)](https://github.com/oliver-nyx/coherencelab/actions/workflows/ci.yml)
 [![Go Report](https://img.shields.io/badge/go-1.24+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/oliver-nyx/coherencelab)](https://github.com/oliver-nyx/coherencelab/releases)
 
-**Open reverse-engineering lab for browser identity** ? dissect real TLS ClientHellos and HTTP/2 frames, then validate cross-layer coherence.
+**Open reverse-engineering lab for browser identity** — dissect real TLS ClientHellos and HTTP/2 frames, then validate cross-layer coherence.
 
 This is not a bypass toolkit. It is a place to **read protocol bytes, understand what detectors can infer, and practice the same skills used in serious fingerprint RE**.
 
 ```
   Capture / synthesize          First-principles parse           Teach + score
-  ???????????????????          ????????????????????????         ???????????????
-  ? Real browser    ?          ? ClientHello dissector?         ? Findings +  ?
-  ? uTLS impersonator? ??????? ? HTTP/2 frame parser  ? ??????? ? labs + CI   ?
-  ? Session export  ?          ? GREASE / order / ALPS?         ? coherence   ?
-  ???????????????????          ????????????????????????         ???????????????
+  ┌─────────────────┐          ┌──────────────────────┐         ┌─────────────┐
+  │ Real browser    │          │ ClientHello dissector│         │ Findings +  │
+  │ uTLS impersonator│ ──────► │ HTTP/2 frame parser  │ ──────► │ labs + CI   │
+  │ Session export  │          │ GREASE / order / ALPS│         │ coherence   │
+  └─────────────────┘          └──────────────────────┘         └─────────────┘
 ```
 
 ## Start with the hard labs
@@ -23,7 +23,7 @@ This is not a bypass toolkit. It is a place to **read protocol bytes, understand
 ```bash
 go build -o bin/coherencelab ./cmd/coherencelab
 
-# Bundled fixtures ? works on a cold clone
+# Bundled fixtures — works on a cold clone
 ./bin/coherencelab lab fixtures
 ./bin/coherencelab lab clienthello --fixture chrome_131   # live-browser
 ./bin/coherencelab lab h2 --fixture h2_chrome             # live H2 request flight
@@ -37,8 +37,8 @@ go build -o bin/coherencelab ./cmd/coherencelab
 
 Read the code while you run it:
 
-- [`internal/dissect/`](internal/dissect/) ? raw TLS + HTTP/2 + HTTP/3 + QUIC parsers with RE annotations
-- [`testdata/corpus/`](testdata/corpus/) ? checked-in wire samples (honestly labeled)
+- [`internal/dissect/`](internal/dissect/) — raw TLS + HTTP/2 + HTTP/3 + QUIC parsers with RE annotations
+- [`testdata/corpus/`](testdata/corpus/) — checked-in wire samples (honestly labeled)
 - [`docs/labs/01-clienthello.md`](docs/labs/01-clienthello.md)
 - [`docs/labs/02-http2-wire.md`](docs/labs/02-http2-wire.md)
 - [`docs/labs/03-hpack-pseudo.md`](docs/labs/03-hpack-pseudo.md)
@@ -77,10 +77,10 @@ go build -o bin/coherencelab ./cmd/coherencelab
 ### Live probe (real TLS handshake + H2 SETTINGS capture)
 
 ```bash
-# Terminal 1 ? start probe server
+# Terminal 1 — start probe server
 ./bin/coherencelab serve --addr 127.0.0.1:8443
 
-# Terminal 2 ? scan against it (captures HTTP/2 SETTINGS from the wire)
+# Terminal 2 — scan against it (captures HTTP/2 SETTINGS from the wire)
 ./bin/coherencelab scan --profile chrome-131-win --mode live \
   --probe https://127.0.0.1:8443/probe --profiles profiles --insecure
 ```
@@ -92,7 +92,7 @@ Live mode captures the actual HTTP/2 SETTINGS frame sent on the wire and compare
 ```bash
 ./bin/coherencelab serve --addr 127.0.0.1:8443 --capture-dir ./captured
 # Open https://127.0.0.1:8443/capture in Chrome/Firefox/Safari
-# Click "Capture & save profile" ? writes ./captured/<id>.yaml
+# Click "Capture & save profile" → writes ./captured/<id>.yaml
 ```
 
 See [docs/browser-capture.md](docs/browser-capture.md).
@@ -101,7 +101,7 @@ See [docs/browser-capture.md](docs/browser-capture.md).
 
 ```bash
 ./bin/coherencelab ui --profiles profiles --addr 127.0.0.1:8080
-# Open http://127.0.0.1:8080 ? run scans or load a JSON report
+# Open http://127.0.0.1:8080 — run scans or load a JSON report
 ```
 
 ### CI integration
@@ -183,7 +183,7 @@ coherencelab profiles validate --profiles profiles
 
 ## Browser Profiles
 
-**18 built-in profiles** in `profiles/` covering major browser ? platform combinations:
+**18 built-in profiles** in `profiles/` covering major browser × platform combinations:
 
 | ID | Browser | Platform |
 |----|---------|----------|
@@ -281,16 +281,16 @@ CoherenceLab runs **23 rules** across 8 categories:
 | `http2` | SETTINGS frame values |
 | `js_runtime` | navigator.platform/vendor/webdriver, WebGL vendor/renderer |
 | `accept_language` | Primary locale |
-| `cross_layer` | UA ? Client Hints ? TLS ? JS platform consistency |
+| `cross_layer` | UA ↔ Client Hints ↔ TLS ↔ JS platform consistency |
 
 **Grading:**
 
 | Grade | Score | Condition |
 |-------|-------|-----------|
-| A | ? 95% | No critical failures |
-| B | ? 85% | No critical failures |
-| C | ? 70% | No critical failures |
-| D | ? 55% | No critical failures |
+| A | ≥ 95% | No critical failures |
+| B | ≥ 85% | No critical failures |
+| C | ≥ 70% | No critical failures |
+| D | ≥ 55% | No critical failures |
 | F | any | Any critical failure OR score < 55% |
 
 Critical cross-layer failures (e.g. Firefox UA with Chrome Client Hints) automatically grade **F**.
@@ -314,69 +314,66 @@ func main() {
 
 ```
 coherencelab/
-??? cmd/coherencelab/       CLI entrypoint
-??? internal/
-?   ??? profile/            YAML profile loader + validation
-?   ??? signal/             Observed identity snapshot
-?   ??? dissect/            First-principles TLS ClientHello + HTTP/2 parsers
-?   ??? rules/              23 coherence rules engine
-?   ??? score/              Weighted scoring + grading
-?   ??? client/             uTLS HTTP client + header builder
-?   ??? h2wire/             HTTP/2 SETTINGS wire capture
-?   ??? probe/              Local TLS probe + browser capture server
-?   ??? scan/               Scan orchestration (local/live/mutate/import)
-?   ??? tlsfp/              JA3/JA4 helpers + uTLS preset mapping
-?   ??? adapters/           httpcloak / Playwright / curl import
-?   ??? compare/            Diff two session exports
-?   ??? capture/            Session JSON ? profile YAML
-?   ??? ui/                 Local Web UI report viewer
-?   ??? report/             Text + JSON report rendering
-??? docs/labs/              Reverse-engineering lab writeups
-??? action.yml              Reusable GitHub Action
-??? pkg/coherencelab/       Public Go API
-??? profiles/               Browser identity profiles
+├── cmd/coherencelab/       CLI entrypoint
+├── internal/
+│   ├── profile/            YAML profile loader + validation
+│   ├── signal/             Observed identity snapshot
+│   ├── dissect/            First-principles TLS ClientHello + HTTP/2 parsers
+│   ├── rules/              23 coherence rules engine
+│   ├── score/              Weighted scoring + grading
+│   ├── client/             uTLS HTTP client + header builder
+│   ├── h2wire/             HTTP/2 SETTINGS wire capture
+│   ├── probe/              Local TLS probe + browser capture server
+│   ├── scan/               Scan orchestration (local/live/mutate/import)
+│   ├── tlsfp/              JA3/JA4 helpers + uTLS preset mapping
+│   ├── adapters/           httpcloak / Playwright / curl import
+│   ├── compare/            Diff two session exports
+│   ├── capture/            Session JSON → profile YAML
+│   ├── ui/                 Local Web UI report viewer
+│   └── report/             Text + JSON report rendering
+├── docs/labs/              Reverse-engineering lab writeups
+├── action.yml              Reusable GitHub Action
+├── pkg/coherencelab/       Public Go API
+└── profiles/               Browser identity profiles
 ```
 
 ## What's complete vs planned
 
 | Area | Status |
 |------|--------|
-| TLS ClientHello dissector (GREASE, order, ALPS, ECH) | ? Complete |
-| HTTP/2 frame dissector (SETTINGS / WINDOW_UPDATE / PRIORITY_UPDATE) | ? Complete |
-| HTTP/3 frame dissector (SETTINGS / GREASE / PRIORITY_UPDATE) | ? Complete |
-| QUIC Initial decrypt + transport parameters | ? Complete |
-| QUIC Version Negotiation + Retry integrity | ? Complete |
-| HPACK + pseudo-header order (Akamai field 4) | ? Complete |
-| ClientHello extension permutation entropy lab | ? Complete |
-| CONTINUATION merge before HPACK | ? Complete |
-| Capture vs uTLS corpus diff | ? Complete |
-| Bundled `testdata/corpus` fixtures + `--fixture` | ? Complete |
-| Live Chrome ClientHello fixture (probe capture) | ? Complete |
-| Live Edge / Firefox ClientHello fixtures | ? Complete |
-| Live Chrome/Edge HTTP/2 first-flight fixtures | ? Complete |
-| Live Chrome QUICv1 Initial fixture | ? Complete |
-| Wire-true JA3/JA4 from peeked ClientHello | ? Complete |
-| QUICv1 Initial + TP GREASE lab | ? Complete |
-| RFC 9218 PRIORITY_UPDATE + Akamai field 3 | ? Complete |
-| HTTP/3 PRIORITY_UPDATE (0xF0700/0xF0701) + GREASE | ? Complete |
-| RE labs (`lab ?` through H3 priority / fixtures) | ? Complete |
-| 23-rule coherence engine | ? Complete |
-| 18 browser profiles | ? Complete |
-| Local + mutate + live scan modes | ? Complete |
-| TLS probe server + uTLS client | ? Complete |
-| CLI, Go API, tests, docs | ? Complete |
-| Live HTTP/2 SETTINGS capture from wire | ? Complete |
-| httpcloak import adapter | ? Complete |
-| Profile capture command | ? Complete |
-| GitHub Actions CI | ? Complete |
-| Playwright / patchright import adapter | ? Complete |
-| curl-impersonate adapter | ? Complete |
-| Compare command (diff two exports) | ? Complete |
-| GitHub Action (reusable / marketplace-ready) | ? Complete |
-| Blog: identity coherence write-up | ? Complete |
-| JS runtime probes (WebGL, navigator) | ? Complete |
-| Profile auto-capture from real browser | ? Complete |
-| Web UI report viewer | ? Complete |
+| TLS ClientHello dissector (GREASE, order, ALPS, ECH) | ✓ Complete |
+| HTTP/2 frame dissector (SETTINGS / WINDOW_UPDATE / PRIORITY_UPDATE) | ✓ Complete |
+| HTTP/3 frame dissector (SETTINGS / GREASE / PRIORITY_UPDATE) | ✓ Complete |
+| QUIC Initial decrypt + transport parameters | ✓ Complete |
+| QUIC Version Negotiation + Retry integrity | ✓ Complete |
+| HPACK + pseudo-header order (Akamai field 4) | ✓ Complete |
+| ClientHello extension permutation entropy lab | ✓ Complete |
+| CONTINUATION merge before HPACK | ✓ Complete |
+| Capture vs uTLS corpus diff | ✓ Complete |
+| Bundled `testdata/corpus` fixtures + `--fixture` | ✓ Complete |
+| Live Chrome ClientHello fixture (probe capture) | ✓ Complete |
+| Live Edge ClientHello fixture (probe capture) | ✓ Complete |
+| QUICv1 Initial + TP GREASE lab | ✓ Complete |
+| RFC 9218 PRIORITY_UPDATE + Akamai field 3 | ✓ Complete |
+| HTTP/3 PRIORITY_UPDATE (0xF0700/0xF0701) + GREASE | ✓ Complete |
+| RE labs (`lab …` through H3 priority / fixtures) | ✓ Complete |
+| 23-rule coherence engine | ✓ Complete |
+| 18 browser profiles | ✓ Complete |
+| Local + mutate + live scan modes | ✓ Complete |
+| TLS probe server + uTLS client | ✓ Complete |
+| CLI, Go API, tests, docs | ✓ Complete |
+| Live HTTP/2 SETTINGS capture from wire | ✓ Complete |
+| httpcloak import adapter | ✓ Complete |
+| Profile capture command | ✓ Complete |
+| GitHub Actions CI | ✓ Complete |
+| Playwright / patchright import adapter | ✓ Complete |
+| curl-impersonate adapter | ✓ Complete |
+| Compare command (diff two exports) | ✓ Complete |
+| GitHub Action (reusable / marketplace-ready) | ✓ Complete |
+| Blog: identity coherence write-up | ✓ Complete |
+| JS runtime probes (WebGL, navigator) | ✓ Complete |
+| Profile auto-capture from real browser | ✓ Complete |
+| Web UI report viewer | ✓ Complete |
 
 ## Roadmap
 
@@ -414,7 +411,7 @@ coherencelab/
 - [x] Live Edge H3 control-stream fixture
 - [x] Live Firefox H3 control-stream fixture (needs `disable_when_third_party_roots_found=false`)
 - [x] CI guard: `*-live.bin` must stay protected in `gen_corpus.go`
-- [ ] Live Safari ClientHello (requires macOS/iOS ? deferred; skip on this host)
+- [ ] Live Safari ClientHello (requires macOS/iOS — deferred; skip on this host)
 
 ## Docs
 
@@ -441,7 +438,7 @@ coherencelab/
 
 ## License
 
-MIT ? see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
 
 ## Disclaimer
 

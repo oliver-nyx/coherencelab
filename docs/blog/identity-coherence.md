@@ -1,4 +1,4 @@
-﻿# Why Your HTTP Client Gets Blocked: Identity Coherence
+# Why Your HTTP Client Gets Blocked: Identity Coherence
 
 *A technical write-up for [antibot.blog](https://antibot.blog) / [debug.cat](https://debug.cat) â€” suitable for republication with attribution.*
 

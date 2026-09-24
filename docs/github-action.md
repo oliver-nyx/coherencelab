@@ -1,4 +1,4 @@
-﻿# GitHub Action
+# GitHub Action
 
 Reusable composite action that installs CoherenceLab and runs a coherence scan in CI.
 
